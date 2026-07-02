@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MathGame</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+/* ════════════════════════════════════
+   THEMES
+════════════════════════════════════ */
+:root {
+  --bg:#08091a;--surface:#0e1028;--card:#141730;--border:#1e2348;
+  --accent:#6366f1;--accent2:#a78bfa;--accent3:#38bdf8;
+  --green:#34d399;--red:#f87171;--yellow:#fbbf24;--orange:#fb923c;
+  --text:#e8eaff;--muted:#555d8a;
+  --glow:rgba(99,102,241,.35);--glow2:rgba(167,139,250,.25);
+  --gradient:linear-gradient(135deg,#6366f1,#a78bfa);
+  --gradient2:linear-gradient(135deg,#38bdf8,#6366f1);
+  --card-shine:rgba(255,255,255,.03);
+  --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+[data-theme="ocean"]{
+  --bg:#020d1a;--surface:#051525;--card:#071e30;--border:#0a3050;
+  --accent:#0ea5e9;--accent2:#38bdf8;--accent3:#06b6d4;
+  --glow:rgba(14,165,233,.35);--glow2:rgba(56,189,248,.25);
+  --gradient:linear-gradient(135deg,#0ea5e9,#06b6d4);
+  --gradient2:linear-gradient(135deg,#38bdf8,#0ea5e9);
+  --text:#e0f6ff;--muted:#2a6080;
+}
+[data-theme="neon"]{
+  --bg:#050508;--surface:#0a0a12;--card:#0d0d18;--border:#1a0a30;
+  --accent:#f000ff;--accent2:#00ffcc;--accent3:#ffe600;
+  --glow:rgba(240,0,255,.4);--glow2:rgba(0,255,204,.3);
+  --gradient:linear-gradient(135deg,#f000ff,#00ffcc);
+  --gradient2:linear-gradient(135deg,#ffe600,#f000ff);
+  --text:#f8f0ff;--muted:#503060;
+}
+[data-theme="sunset"]{
+  --bg:#0f0800;--surface:#1a1000;--card:#221500;--border:#3a2000;
+  --accent:#f97316;--accent2:#fbbf24;--accent3:#ef4444;
+  --glow:rgba(249,115,22,.35);--glow2:rgba(251,191,36,.25);
+  --gradient:linear-gradient(135deg,#f97316,#fbbf24);
+  --gradient2:linear-gradient(135deg,#ef4444,#f97316);
+  --text:#fff5e0;--muted:#6b4a20;
+}
+[data-theme="forest"]{
+  --bg:#040d06;--surface:#081508;--card:#0c1e0c;--border:#132813;
+  --accent:#22c55e;--accent2:#86efac;--accent3:#4ade80;
+  --glow:rgba(34,197,94,.35);--glow2:rgba(134,239,172,.25);
+  --gradient:linear-gradient(135deg,#22c55e,#86efac);
+  --gradient2:linear-gradient(135deg,#4ade80,#22c55e);
+  --text:#e0ffe8;--muted:#2a5030;
+}
+[data-theme="royal"]{
+  --bg:#080512;--surface:#0f0a1e;--card:#160e28;--border:#281848;
+  --accent:#c084fc;--accent2:#f0abfc;--accent3:#e879f9;
+  --glow:rgba(192,132,252,.35);--glow2:rgba(240,171,252,.25);
+  --gradient:linear-gradient(135deg,#c084fc,#f0abfc);
+  --gradient2:linear-gradient(135deg,#e879f9,#c084fc);
+  --text:#f8f0ff;--muted:#5a3a7a;
+}
+
+/* ════════════════════════════════════
+   BASE
+════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--font);
+  min-height:100vh;display:flex;flex-direction:column;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%,var(--glow),transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%,var(--glow2),transparent);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+
+/* ── Reset Banner ── */
+#reset-banner{
+  display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:linear-gradient(90deg,#7c3aed,#a855f7);
+  color:#fff;text-align:center;padding:14px 20px;
+  font-weight:700;font-size:.95rem;letter-spacing:.02em;
+  box-shadow:0 4px 20px rgba(124,58,237,.5);
+  animation:slideDown .4s ease;
+}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+
+/* ── Topbar ── */
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,.4);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  font-size:1.3rem;font-weight:900;letter-spacing:-.04em;
+  background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.logo-sub{font-size:.65rem;color:var(--muted);font-family:var(--mono);margin-top:1px;}
+.nav-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.nav-btns button{
+  padding:6px 14px;border-radius:9px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.04);
+  color:var(--text);font-family:var(--font);
+  font-size:.78rem;font-weight:600;cursor:pointer;
+  transition:all .2s;backdrop-filter:blur(8px);
+}
+.nav-btns button:hover{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 16px var(--glow);}
+.nav-btns button.active{background:var(--gradient);border-color:transparent;color:#fff;box-shadow:0 0 20px var(--glow);}
+
+/* ── Main ── */
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+
+/* ── Card ── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:32px;
+  width:100%;max-width:480px;
+  position:relative;overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,.4),0 0 0 1px var(--card-shine) inset;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:.6;
+}
+.card-wide{max-width:760px;}
+.card-xl{max-width:900px;}
+.card-title{font-size:1.65rem;font-weight:900;margin-bottom:4px;letter-spacing:-.04em;}
+.card-sub{color:var(--muted);font-size:.82rem;margin-bottom:22px;line-height:1.5;}
+
+/* ── Gradient text ── */
+.grad-text{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* ── Form ── */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.field input,.field select{
+  width:100%;padding:12px 15px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:11px;color:var(--text);font-family:var(--font);font-size:.92rem;
+  outline:none;transition:border .2s,box-shadow .2s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+.field input::placeholder{color:var(--muted);}
+
+/* ── Buttons ── */
+.btn{width:100%;padding:13px;border-radius:13px;border:none;font-family:var(--font);font-size:.92rem;font-weight:700;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--gradient);color:#fff;box-shadow:0 4px 20px var(--glow);}
+.btn-primary:hover{box-shadow:0 6px 28px var(--glow),0 0 0 1px rgba(255,255,255,.1) inset;filter:brightness(1.1);}
+.btn-ghost{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);margin-top:8px;}
+.btn-ghost:hover{background:var(--border);border-color:var(--accent);}
+.btn-purple{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;margin-top:8px;box-shadow:0 4px 20px rgba(124,58,237,.4);}
+.btn-purple:hover{filter:brightness(1.1);box-shadow:0 6px 28px rgba(124,58,237,.5);}
+.btn-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:var(--red);margin-top:6px;}
+.btn-danger:hover{background:rgba(239,68,68,.2);}
+.btn-sm{padding:6px 14px;width:auto;font-size:.75rem;border-radius:9px;}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:3px;margin-bottom:20px;background:var(--surface);padding:4px;border-radius:14px;border:1px solid var(--border);}
+.tab-btn{flex:1;padding:8px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s;}
+.tab-btn.active{background:var(--gradient);color:#fff;box-shadow:0 2px 12px var(--glow);}
+
+/* ── Msg ── */
+.msg{padding:10px 14px;border-radius:11px;font-size:.82rem;margin-top:10px;text-align:center;font-weight:600;}
+.msg.ok{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:var(--green);}
+.msg.err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);}
+.msg.info{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);color:var(--accent2);}
+
+/* ── PIN box ── */
+.pin-box{
+  background:var(--surface);border:2px dashed var(--accent);
+  border-radius:16px;padding:20px;text-align:center;margin:16px 0;
+  position:relative;overflow:hidden;
+}
+.pin-box::before{content:'';position:absolute;inset:0;background:var(--gradient);opacity:.04;}
+.pin-val{font-family:var(--mono);font-size:2.6rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.18em;}
+.pin-warn{font-size:.73rem;color:var(--muted);margin-top:6px;}
+
+/* ── Difficulty ── */
+.diff-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.diff-btn{
+  flex:1;min-width:72px;padding:10px 4px;border-radius:11px;
+  border:1.5px solid var(--border);background:var(--surface);
+  color:var(--text);font-family:var(--font);font-size:.78rem;font-weight:700;
+  cursor:pointer;transition:all .2s;text-align:center;
+}
+.diff-btn.sel{border-color:var(--accent);background:rgba(99,102,241,.12);box-shadow:0 0 12px var(--glow);}
+.diff-btn.extreme{border-color:rgba(248,113,113,.4);}
+.diff-btn.extreme.sel{border-color:var(--red);background:rgba(248,113,113,.1);box-shadow:0 0 12px rgba(248,113,113,.3);}
+
+/* ── Stats card ── */
+.stats-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:14px 18px;margin-bottom:18px;display:flex;gap:0;
+  overflow:hidden;position:relative;
+}
+.stats-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient);}
+.stat-col{flex:1;text-align:center;padding:4px 0;}
+.stat-col+.stat-col{border-left:1px solid var(--border);}
+.stat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+.stat-val{font-size:1.3rem;font-weight:900;font-family:var(--mono);}
+
+/* ── Rank bar ── */
+.rank-bar-wrap{margin:14px 0;}
+.rank-bar-bg{height:8px;background:var(--border);border-radius:99px;overflow:hidden;}
+.rank-bar-fill{height:100%;border-radius:99px;background:var(--gradient);transition:width .6s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px var(--glow);}
+.rank-bar-labels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:5px;}
+
+/* ── Badge ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:.72rem;font-weight:700;}
+.badge-accent{background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:var(--accent2);}
+.badge-rank{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yellow);}
+
+/* ── Game HUD ── */
+.hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;}
+.hud-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;text-align:center;}
+.hud-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.hud-val{font-size:1.4rem;font-weight:900;font-family:var(--mono);}
+
+/* ── Timer ── */
+.timer-wrap{margin-bottom:16px;}
+.timer-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;}
+.timer-fill{height:100%;border-radius:99px;transition:width .9s linear,background .3s;box-shadow:0 0 6px currentColor;}
+.timer-num{text-align:right;font-size:.78rem;font-weight:700;margin-top:4px;}
+
+/* ── Question ── */
+.q-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:28px 20px;text-align:center;margin-bottom:18px;
+  position:relative;overflow:hidden;
+}
+.q-box::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:var(--gradient);opacity:.5;}
+.q-text{font-size:2.4rem;font-weight:900;letter-spacing:-.02em;line-height:1.2;}
+.q-diff-tag{font-size:.68rem;font-family:var(--mono);color:var(--muted);margin-top:6px;}
+
+/* ── Choices ── */
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.choice-btn{
+  padding:18px 10px;border-radius:14px;
+  border:1.5px solid var(--border);background:var(--surface);
+  color:var(--text);font-family:var(--font);font-size:1.25rem;font-weight:800;
+  cursor:pointer;transition:all .18s;
+}
+.choice-btn:hover:not(:disabled){
+  border-color:var(--accent);background:rgba(99,102,241,.1);
+  transform:translateY(-2px);box-shadow:0 6px 20px var(--glow);
+}
+.choice-btn.correct{border-color:var(--green);background:rgba(52,211,153,.12);color:var(--green);box-shadow:0 0 16px rgba(52,211,153,.3);}
+.choice-btn.wrong{border-color:var(--red);background:rgba(248,113,113,.1);color:var(--red);}
+.choice-btn:disabled{cursor:default;transform:none;}
+#feedback-msg{text-align:center;font-size:1.1rem;font-weight:800;margin-top:13px;min-height:26px;letter-spacing:.01em;}
+
+/* ── Result ── */
+.result-hero{
+  text-align:center;padding:20px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;margin:16px 0;position:relative;overflow:hidden;
+}
+.result-hero::before{content:'';position:absolute;inset:0;background:var(--gradient);opacity:.05;}
+.result-num{font-size:4.5rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.04em;line-height:1;}
+.result-lbl{font-size:.78rem;color:var(--muted);margin-top:6px;}
+.result-stats{display:flex;justify-content:space-around;margin-bottom:16px;gap:8px;}
+.result-stat{text-align:center;flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 8px;}
+.result-stat .val{font-size:1.4rem;font-weight:900;font-family:var(--mono);}
+.result-stat .lbl{font-size:.68rem;color:var(--muted);}
+
+/* ── Leaderboard ── */
+.lb-table{width:100%;border-collapse:collapse;font-size:.84rem;}
+.lb-table th{color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.lb-table td{padding:10px;border-bottom:1px solid rgba(30,35,72,.5);}
+.lb-table tr:last-child td{border-bottom:none;}
+.lb-table tr:hover td{background:var(--surface);}
+.lb-rank{font-family:var(--mono);font-weight:700;color:var(--muted);width:32px;}
+.lb-score{font-family:var(--mono);font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.lb-top td{background:rgba(99,102,241,.06);}
+
+/* ── Ranked VS ── */
+.vs-container{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:18px;padding:16px;margin-bottom:16px;gap:10px;
+}
+.vs-player{text-align:center;flex:1;}
+.vs-avatar{width:50px;height:50px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto 6px;box-shadow:0 0 16px var(--glow);}
+.vs-name{font-weight:800;font-size:.9rem;}
+.vs-rankname{font-size:.72rem;color:var(--muted);}
+.vs-divider{font-size:1.8rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex-shrink:0;}
+.vs-scores{display:flex;justify-content:space-around;margin-bottom:12px;gap:8px;}
+.vs-score-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;}
+.vs-score-num{font-size:1.7rem;font-weight:900;font-family:var(--mono);}
+.vs-score-lbl{font-size:.65rem;color:var(--muted);}
+
+/* ── Chat ── */
+#chat-box{
+  height:300px;overflow-y:auto;background:var(--surface);
+  border:1px solid var(--border);border-radius:16px;
+  padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;
+}
+.chat-row{display:flex;gap:9px;align-items:flex-start;}
+.chat-av{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--gradient);display:flex;align-items:center;
+  justify-content:center;font-size:.75rem;font-weight:800;
+  flex-shrink:0;box-shadow:0 0 10px var(--glow);
+}
+.chat-body{}
+.chat-meta{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.chat-user{font-size:.75rem;font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.chat-badges{font-size:.72rem;}
+.chat-time{font-size:.62rem;color:var(--muted);}
+.chat-txt{font-size:.85rem;line-height:1.45;color:var(--text);}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{
+  flex:1;padding:11px 14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:var(--font);font-size:.88rem;outline:none;
+  transition:border .2s,box-shadow .2s;
+}
+.chat-input-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+.chat-input-row button{
+  padding:11px 18px;border-radius:12px;border:none;
+  background:var(--gradient);color:#fff;font-family:var(--font);font-weight:800;cursor:pointer;
+  box-shadow:0 4px 14px var(--glow);transition:all .2s;
+}
+.chat-input-row button:hover{filter:brightness(1.1);}
+
+/* ── Admin table ── */
+.admin-wrap{overflow-x:auto;margin-top:14px;border-radius:12px;border:1px solid var(--border);}
+.admin-table{width:100%;border-collapse:collapse;font-size:.78rem;min-width:600px;}
+.admin-table th{background:var(--surface);color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);}
+.admin-table td{padding:9px 12px;border-bottom:1px solid rgba(30,35,72,.4);vertical-align:middle;}
+.admin-table tr:last-child td{border-bottom:none;}
+.admin-table tr:hover td{background:var(--surface);}
+.pin-cell{font-family:var(--mono);font-size:.88rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;letter-spacing:.12em;}
+
+/* ── Theme picker ── */
+.theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0;}
+.theme-card{
+  padding:12px 8px;border-radius:12px;border:2px solid var(--border);
+  cursor:pointer;text-align:center;transition:all .2s;
+  font-size:.8rem;font-weight:700;
+}
+.theme-card:hover{border-color:var(--accent);transform:scale(1.03);}
+.theme-card.active{border-color:var(--accent);box-shadow:0 0 16px var(--glow);}
+
+/* ── Screen ── */
+.screen{display:none;}.screen.active{display:block;}
+
+/* ── Searching anim ── */
+.dots::after{content:'';animation:dots 1.4s steps(4,end) infinite;}
+@keyframes dots{0%,20%{content:''}40%{content:'.'}60%{content:'..'}80%,100%{content:'...'}}
+
+/* ── Rank up toast ── */
+.rank-up-box{
+  display:none;text-align:center;padding:14px;margin-bottom:14px;
+  border-radius:14px;background:rgba(99,102,241,.12);
+  border:1px solid rgba(99,102,241,.3);
+  animation:popIn .4s cubic-bezier(.2,.8,.3,1.2);
+}
+@keyframes popIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── Footer ── */
+footer{
+  text-align:center;padding:14px;
+  font-size:.68rem;color:var(--muted);font-family:var(--mono);
+  border-top:1px solid var(--border);
+  background:rgba(0,0,0,.2);backdrop-filter:blur(10px);
+}
+footer .hl{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700;}
+
+@media(max-width:520px){
+  .card{padding:18px;}
+  .q-text{font-size:1.8rem;}
+  #topbar{padding:10px 14px;}
+  .nav-btns button{font-size:.7rem;padding:5px 9px;}
+  .hud-val{font-size:1.1rem;}
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="reset-banner">🔄 แอดมินได้รีแรงค์แล้ว! กรุณากด F5 เพื่อรีเฟรชเว็บ</div>
+
+<div id="topbar">
+  <div>
+    <div class="logo">🧮 MathGame</div>
+    <div class="logo-sub" id="version-tag">v3.0.0 · by garfiw_dev</div>
+  </div>
+  <div class="nav-btns">
+    <button onclick="showPage('home')" id="nav-home">หน้าหลัก</button>
+    <button onclick="showPage('board')" id="nav-board">🏆 อันดับ</button>
+    <button onclick="openChat()" id="nav-chat">💬 แชท</button>
+    <button onclick="showPage('admin-login')" id="nav-admin">⚙ Admin</button>
+  </div>
+</div>
+
+<main>
+
+<div class="card screen active" id="page-home">
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-login-btn" onclick="switchTab('login')">🔑 เข้าสู่ระบบ</button>
+    <button class="tab-btn" id="tab-reg-btn" onclick="switchTab('reg')">✨ สมัครสมาชิก</button>
+  </div>
+
+  <div id="tab-login">
+    <div class="card-title">ยินดีต้วนรับ! 👋</div>
+    <div class="card-sub">ใส่ PIN 6 หลักเพื่อเข้าเล่น</div>
+    <div class="field">
+      <label>PIN ประจำตัว</label>
+      <input type="password" id="login-pin" maxlength="6" placeholder="••••••" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">เข้าสู่ระบบ →</button>
+    <div id="login-msg"></div>
+  </div>
+
+  <div id="tab-reg" style="display:none">
+    <div class="card-title">สร้างบัญชีใหม่ ✨</div>
+    <div class="card-sub">ระบบสุ่ม PIN 6 หลักให้คุณโดยอัตโนมัติ</div>
+    <div class="field"><label>ชื่อผู้ใช้</label>
+      <input type="text" id="reg-user" placeholder="เช่น mathking99" maxlength="20"/>
+    </div>
+    <div class="field"><label>รหัสผ่าน</label>
+      <input type="password" id="reg-pass" placeholder="อย่างน้อย 4 ตัวอักษร"/>
+    </div>
+    <button class="btn btn-primary" onclick="doRegister()">สร้างบัญชี →</button>
+    <div id="reg-msg"></div>
+    <div id="pin-result" style="display:none">
+      <div class="pin-box">
+        <div style="font-size:.7rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">PIN ประจำตัวของคุณ</div>
+        <div class="pin-val" id="new-pin-display">------</div>
+        <div class="pin-warn">⚠️ บันทึก PIN นี้ไว้ให้ดี! ใช้สำหรับ Login ทุกครั้ง</div>
+      </div>
+      <button class="btn btn-primary" onclick="switchTab('login')">ไป Login →</button>
+    </div>
+  </div>
+</div>
+
+<div class="card screen" id="page-menu">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+    <div>
+      <div class="card-title">สวัสดี, <span class="grad-text" id="menu-username"></span>!</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+        <span class="badge badge-accent" id="menu-title-badge">🌹 มือใหม่</span>
+        <span class="badge badge-rank" id="menu-rank-badge">🪵 ไม้</span>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">ออก</button>
+  </div>
+
+  <div class="stats-card">
+    <div class="stat-col"><div class="stat-lbl">คะแนนรวม</div><div class="stat-val" style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" id="menu-score">0</div></div>
+    <div class="stat-col"><div class="stat-lbl">Best</div><div class="stat-val" style="color:var(--yellow)" id="menu-best">0</div></div>
+    <div class="stat-col"><div class="stat-lbl">EXP</div><div class="stat-val" style="color:var(--green)" id="menu-exp">0</div></div>
+    <div class="stat-col"><div class="stat-lbl">เกม</div><div class="stat-val" id="menu-games">0</div></div>
+  </div>
+
+  <div class="rank-bar-wrap">
+    <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:5px;">
+      <span class="grad-text" id="rank-cur-label" style="font-weight:700;"></span>
+      <span style="color:var(--muted)" id="rank-next-label"></span>
+    </div>
+    <div class="rank-bar-bg"><div class="rank-bar-fill" id="rank-bar-fill" style="width:0%"></div></div>
+    <div class="rank-bar-labels"><span id="rank-exp-cur">0 EXP</span><span id="rank-exp-next"></span></div>
+  </div>
+
+  <div class="field" style="margin-top:16px;"><label>ระดับความยาก</label></div>
+  <div class="diff-row">
+    <button class="diff-btn sel" onclick="setDiff('easy',this)">ง่าย<br>🟢</button>
+    <button class="diff-btn" onclick="setDiff('medium',this)">กลาง<br>🟡</button>
+    <button class="diff-btn" onclick="setDiff('hard',this)">ยาก<br>🔴</button>
+    <button class="diff-btn extreme" onclick="setDiff('extreme',this)">โหดสุด<br>💀</button>
+  </div>
+  <div id="diff-info" style="font-size:.75rem;color:var(--muted);margin-bottom:16px;padding:8px 12px;background:var(--surface);border-radius:99px;border:1px solid var(--border);"></div>
+
+  <button class="btn btn-primary" onclick="startGame()">▶ เริ่มเล่น (10 ข้อ)</button>
+  <button class="btn btn-purple" onclick="startRankedSearch()">⚔️ แแข่งแรงค์</button>
+  <button class="btn btn-ghost" onclick="showPage('board')">🏆 ดูตารางอันดับ</button>
+</div>
+
+<div class="card screen" id="page-game">
+  <div class="hud">
+    <div class="hud-card"><div class="hud-lbl">คะแนน</div><div class="hud-val grad-text" id="g-score">0</div></div>
+    <div class="hud-card"><div class="hud-lbl">เหลือ</div><div class="hud-val" id="g-left">10</div></div>
+    <div class="hud-card"><div class="hud-lbl">Combo</div><div class="hud-val" id="g-combo">0</div></div>
+  </div>
+  <div class="timer-wrap">
+    <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    <div class="timer-num" id="g-time-label"></div>
+  </div>
+  <div class="q-box">
+    <div class="q-diff-tag" id="g-diff-tag"></div>
+    <div class="q-text" id="g-question">?</div>
+  </div>
+  <div class="choices" id="g-choices"></div>
+  <div id="feedback-msg"></div>
+</div>
+
+<div class="card screen" id="page-ranked-search">
+  <div style="text-align:center;padding:20px 0;">
+    <div style="font-size:3.5rem;margin-bottom:12px;" id="search-rank-emoji">🪵</div>
+    <div class="card-title" style="text-align:center">⚔️ กำลังหาคู่แข่ง<span class="dots"></span></div>
+    <div class="card-sub" style="text-align:center">ค้นหาผู้เล่นในระดับแรงค์ใกล้เคียง</div>
+    <div style="width:60px;height:60px;border-radius:50%;border:3px solid var(--accent);border-top-color:transparent;animation:spin .8s linear infinite;margin:20px auto;"></div>
+  </div>
+  <button class="btn btn-ghost" onclick="showPage('menu')">← ยกเลิก</button>
+</div>
+
+<div class="card screen" id="page-ranked-game">
+  <div class="vs-container">
+    <div class="vs-player">
+      <div class="vs-avatar" id="rg-my-emoji">🪵</div>
+      <div class="vs-name" id="rg-my-name">You</div>
+      <div class="vs-rankname" id="rg-my-rank">ไม้</div>
+    </div>
+    <div class="vs-divider">VS</div>
+    <div class="vs-player">
+      <div class="vs-avatar" id="rg-opp-emoji">🪵</div>
+      <div class="vs-name" id="rg-opp-name">???</div>
+      <div class="vs-rankname" id="rg-opp-rank">ไม้</div>
+    </div>
+  </div>
+  <div class="vs-scores">
+    <div class="vs-score-box"><div class="vs-score-num grad-text" id="rg-my-score">0</div><div class="vs-score-lbl">คะแนนฉัน</div></div>
+    <div class="vs-score-box"><div class="vs-score-num" style="color:var(--red)" id="rg-opp-score">0</div><div class="vs-score-lbl">คะแนนคู่แข่ง</div></div>
+    <div class="vs-score-box"><div class="vs-score-num" style="color:var(--green)" id="rg-exp-est">~60</div><div class="vs-score-lbl">EXP คาด</div></div>
+  </div>
+  <div class="hud" style="margin-bottom:10px;">
+    <div class="hud-card"><div class="hud-lbl">เหลือ</div><div class="hud-val" id="rg-left">10</div></div>
+  </div>
+  <div class="timer-wrap">
+    <div class="timer-bar"><div class="timer-fill" id="rg-timer-fill"></div></div>
+    <div class="timer-num" id="rg-time-label"></div>
+  </div>
+  <div class="q-box"><div class="q-text" id="rg-question">?</div></div>
+  <div class="choices" id="rg-choices"></div>
+  <div id="rg-feedback"></div>
+</div>
+
+<div class="card screen" id="page-ranked-result">
+  <div class="card-title" style="text-align:center;" id="rr-title">⚔️ ผลการแข่งขัน</div>
+  <div class="result-hero">
+    <div class="result-num" id="rr-score">0</div>
+    <div class="result-lbl">คะแนนของคุณ</div>
+  </div>
+  <div class="result-stats">
+    <div class="result-stat"><div class="val" style="color:var(--red)" id="rr-opp-score">0</div><div class="lbl">คะแนนคู่แข่ง</div></div>
+    <div class="result-stat"><div class="val" style="color:var(--green)" id="rr-exp">+0</div><div class="lbl">EXP ที่ได้</div></div>
+  </div>
+  <div class="rank-up-box" id="rr-rank-up">
+    <div style="font-size:2rem" id="rr-rank-emoji"></div>
+    <div style="font-weight:800;font-size:1rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" id="rr-rank-text">เลื่อนแรงค์แล้ว!</div>
+  </div>
+  <button class="btn btn-purple" onclick="startRankedSearch()">⚔️ แข่งอีกรอบ</button>
+  <button class="btn btn-ghost" onclick="showPage('menu')">← กลับ Menu</button>
+</div>
+
+<div class="card screen" id="page-result">
+  <div class="card-title" style="text-align:center" id="result-emoji">🏆 จบเกม!</div>
+  <div class="result-hero">
+    <div class="result-num" id="result-score">0</div>
+    <div class="result-lbl">คะแนนรอบนี้</div>
+  </div>
+  <div class="result-stats">
+    <div class="result-stat"><div class="val" style="color:var(--yellow)" id="result-best">0</div><div class="lbl">สูงสุดตลอดกาล</div></div>
+    <div class="result-stat"><div class="val grad-text" id="result-total">0</div><div class="lbl">คะแนนรวม</div></div>
+  </div>
+  <div class="rank-up-box" id="result-title-up">
+    <div style="font-weight:800;font-size:.95rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" id="result-title-up-text">ได้ยศใหม่!</div>
+  </div>
+  <button class="btn btn-primary" onclick="showPage('menu')">🔄 เล่นอีกรอบ</button>
+  <button class="btn btn-ghost" onclick="showPage('board')">🏆 ตารางอันดับ</button>
+  <button class="btn btn-ghost" style="margin-top:8px" onclick="showPage('menu')">🏠 กลับเมนูหลัก</button>
+</div>
+
+<div class="card screen card-wide" id="page-board">
+  <div class="card-title">🏆 ตารางอันดับ</div>
+  <div class="card-sub">Top 20 · คะแนนสูงสุดตลอดกาล</div>
+  <div id="lb-content"><div style="color:var(--muted);text-align:center;padding:40px">กำลังโหลด...</div></div>
+  <button class="btn btn-ghost" style="margin-top:14px" onclick="goBack()">← กลับ</button>
+</div>
+
+<div class="card screen card-wide" id="page-chat">
+  <div class="card-title">💬 แชท</div>
+  <div class="card-sub">พูดคุยกับผู้เล่นคนอื่น · ข้อความเก็บไว้ 80 ล่าสุด</div>
+  <div id="chat-box"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" placeholder="พิมพ์ข้อความ..." maxlength="200" onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button onclick="sendChat()">ส่ง ↩</button>
+  </div>
+  <div id="chat-msg" style="margin-top:8px;"></div>
+  <button class="btn btn-ghost" style="margin-top:10px" onclick="goBack()">← กลับ</button>
+</div>
+
+<div class="card screen" id="page-admin-login">
+  <div class="card-title">⚙️ Admin Panel</div>
+  <div class="card-sub">เข้าสู่ระบบด้วยบัญชีผู้ดูแล</div>
+  <div class="field"><label>Username</label><input type="text" id="adm-user" placeholder="admin username" onkeydown="if(event.key==='Enter')doAdminLogin()"/></div>
+  <div class="field"><label>Password</label><input type="password" id="adm-pass" placeholder="admin password" onkeydown="if(event.key==='Enter')doAdminLogin()"/></div>
+  <button class="btn btn-primary" onclick="doAdminLogin()">เข้าสู่ระบบ →</button>
+  <div id="adm-login-msg"></div>
+  <button class="btn btn-ghost" onclick="goBack()">← กลับ</button>
+</div>
+
+<div class="card screen card-xl" id="page-admin">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <div class="card-title">⚙️ Admin Dashboard</div>
+    <button class="btn btn-ghost btn-sm" onclick="logout_admin()">ออก</button>
+  </div>
+  <div class="card-sub">จัดการผู้ใช้ · PIN · แรงค์ · ธีม</div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">🎨 ธีมเว็บ (ทุกคนจะเห็นธีมนี้)</div>
+    <div class="theme-grid">
+      <div class="theme-card" onclick="setTheme('dark')" id="theme-dark" style="background:#08091a;color:#a78bfa;border-color:#1e2348;">🌌 Dark</div>
+      <div class="theme-card" onclick="setTheme('ocean')" id="theme-ocean" style="background:#020d1a;color:#38bdf8;border-color:#0a3050;">🌊 Ocean</div>
+      <div class="theme-card" onclick="setTheme('neon')" id="theme-neon" style="background:#050508;color:#f000ff;border-color:#1a0a30;">⚡ Neon</div>
+      <div class="theme-card" onclick="setTheme('sunset')" id="theme-sunset" style="background:#0f0800;color:#f97316;border-color:#3a2000;">🌅 Sunset</div>
+      <div class="theme-card" onclick="setTheme('forest')" id="theme-forest" style="background:#040d06;color:#22c55e;border-color:#132813;">🌿 Forest</div>
+      <div class="theme-card" onclick="setTheme('royal')" id="theme-royal" style="background:#080512;color:#c084fc;border-color:#281848;">👑 Royal</div>
+    </div>
+    <div id="theme-msg" style="font-size:.78rem;"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+    <button class="btn btn-ghost btn-sm" style="width:auto" onclick="loadAdminUsers()">🔄 รีเฟรช</button>
+    <button class="btn btn-danger btn-sm" style="width:auto" onclick="adminResetRanks()">⚠️ รีแรงค์ทั้งหมด</button>
+    <button class="btn btn-danger btn-sm" style="width:auto" onclick="adminClearChat()">🗑 ล้างแชท</button>
+  </div>
+
+  <div class="admin-wrap">
+    <table class="admin-table">
+      <thead><tr>
+        <th>#</th><th>ชื่อผู้ใช้</th><th>PIN</th><th>ยศ</th>
+        <th>แรงค์</th><th>EXP</th><th>Best</th><th>เกม</th><th>จัดการ</th>
+      </tr></thead>
+      <tbody id="admin-table-body">
+        <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">กำลังโหลด...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="admin-msg" style="margin-top:12px;"></div>
+</div>
+
+</main>
+
+<footer>
+  🧮 MathGame &nbsp;·&nbsp; <span class="hl" id="footer-ver">v3.0.0</span>
+  &nbsp;·&nbsp; dev by <span class="hl" id="footer-dev">garfiw_dev</span>
+  &nbsp;·&nbsp; © 2025 All rights reserved
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS (แก้ไขคีย์ให้แมตช์กับ Python แล้ว)
+// ═══════════════════════════════════════════════════════════
+const RANKS=[
+  {id:"wood",    name:"แรงค์ไม้",      emoji:"🪵", exp:0,    diff:"easy"},
+  {id:"iron",    name:"แรงค์เหล็ก",   emoji:"🗿", exp:430,  diff:"easy"},
+  {id:"silver",  name:"แรงค์เงิน",    emoji:"⚙️", exp:730,  diff:"medium"},
+  {id:"gold",    name:"แรงค์ทอง",     emoji:"🪙", exp:999,  diff:"medium"},
+  {id:"diamond", name:"แรงค์เพชร",    emoji:"💎", exp:1567, diff:"hard"},
+  {id:"purple",  name:"แรงค์ม่วง",    emoji:"♾️", exp:3486, diff:"hard"},
+  {id:"bigbrain",name:"สมองใหญ่",     emoji:"🧠", exp:5567, diff:"extreme"},
+  {id:"king",    name:"แรงค์ KING",   emoji:"🏅👑",exp:7679, diff:"extreme"},
+];
+const RANK_MAX=13245;
+const TITLES=[
+  {name:"มือใหม่",              emoji:"🌹",  min:0},
+  {name:"เทพ",                  emoji:"😎",  min:500},
+  {name:"ฉลาด",                 emoji:"💎",  min:2000},
+  {name:"โหด",                  emoji:"☠️",  min:10000},
+  {name:"อัลเบิร์ต ไอน์สไตน์",emoji:"🧠🥸",min:100000},
+];
+const DIFF={
+  easy:   {label:"ง่าย 🟢",   time:15,pts:1, info:"บวก/ลบ ≤20  ·  1 แต้ม/ข้อ"},
+  medium: {label:"กลาง 🟡",  time:12,pts:2, info:"บวก/ลบ/คูณ ≤50  ·  2 แต้ม/ข้อ"},
+  hard:   {label:"ยาก 🔴",   time:10,pts:3, info:"บวก/ลบ/คูณ/หาร ≤100  ·  3 แต้ม/ข้อ"},
+  extreme:{label:"💀 EXTREME",time:8, pts:5, info:"กำลัง, mod, คูณใหญ่ ≤999  ·  5 แต้ม/ข้อ"},
+};
+const THEMES=["dark","ocean","neon","sunset","forest","royal"];
+
+function getRank(e){let r=RANKS[0];for(const k of RANKS)if(e>=k.exp)r=k;return r;}
+function getNextRank(e){for(let i=0;i<RANKS.length;i++)if(e<RANKS[i].exp)return RANKS[i];return null;}
+function getTitle(s){let t=TITLES[0];for(const k of TITLES)if(s>=k.min)t=k;return t;}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let cu=null,diff="easy",adminCreds=null,prevPage="home";
+let gScore=0,gLeft=10,gCombo=0,gQ=null,gTiv=null,gTval=0,gQstart=0;
+let rgScore=0,rgLeft=10,rgCombo=0,rgQ=null,rgTiv=null,rgTval=0;
+let rgOppScore=0,rgOpp=null,rgOppRank=null,rgDiff="easy";
+let rgTotalTime=0,rgCorrect=0;
+let chatIv=null,sysIv=null,lastResetTime=0,currentTheme="dark";
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+window.onload=async()=>{
+  try{
+    const d=await(await fetch("/api/info")).json();
+    document.getElementById("version-tag").textContent=`v${d.version} · by ${d.dev}`;
+    document.getElementById("footer-ver").textContent=`v${d.version}`;
+    document.getElementById("footer-dev").textContent=d.dev;
+  }catch{}
+  updateDiffInfo();
+  startSysPolling();
+  autoCheckLogin();
+};
+
+// ═══════════════════════════════════════════════════════════
+// SYSTEM POLLING
+// ═══════════════════════════════════════════════════════════
+function startSysPolling(){
+  sysIv=setInterval(async()=>{
+    try{
+      const d=await(await fetch("/api/system/status")).json();
+      if(d.reset_flag&&d.reset_time>lastResetTime){
+        lastResetTime=d.reset_time;
+        document.getElementById("reset-banner").style.display="block";
+      }
+      if(d.theme&&d.theme!==currentTheme) applyTheme(d.theme,false);
+    }catch{}
+  },5000);
+}
+
+function applyTheme(t,save=true){
+  if(!THEMES.includes(t))return;
+  currentTheme=t;
+  document.documentElement.setAttribute("data-theme",t==="dark"?"":t);
+  document.querySelectorAll(".theme-card").forEach(c=>c.classList.remove("active"));
+  const el=document.getElementById("theme-"+t);
+  if(el) el.classList.add("active");
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTOMATIC AUTH CHECK
+// ═══════════════════════════════════════════════════════════
+async function autoCheckLogin() {
+  try {
+    const response = await fetch("/api/check-auth");
+    if (!response.ok) throw new Error("ไม่ได้ล็อกอินค้างไว้");
+    const d = await response.json();
+    if (d.logged_in) {
+      console.log("พบเซสชันการล็อกอินเดิม:", d.username);
+      cu = {
+        username: d.username,
+        score: d.score,
+        best_score: d.best_score,
+        games_played: d.games_played,
+        exp: d.exp
+      };
+      goToMenu();
+    }
+  } catch (err) {
+    console.log("ไม่มีเซสชันเดิม หรือเซสชันหมดอายุ ให้ผู้ใช้กรอก PIN ตามปกติ");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RANK BAR FILL LOGIC
+// ═══════════════════════════════════════════════════════════
+function updateRankBar(exp){
+  const curRank = getRank(exp);
+  const nextRank = getNextRank(exp);
+  
+  const curLabelEl = document.getElementById("rank-cur-label");
+  const nextLabelEl = document.getElementById("rank-next-label");
+  const expCurEl = document.getElementById("rank-exp-cur");
+  const expNextEl = document.getElementById("rank-exp-next");
+  const barFillEl = document.getElementById("rank-bar-fill");
+
+  if(!curLabelEl || !barFillEl) return;
+
+  curLabelEl.textContent = `${curRank.emoji} ${curRank.name}`;
+
+  if (nextRank) {
+    nextLabelEl.textContent = `${nextRank.name} ${nextRank.emoji}`;
+    
+    const rangeMin = curRank.exp;
+    const rangeMax = nextRank.exp;
+    const progressInRange = exp - rangeMin;
+    const totalInRange = rangeMax - rangeMin;
+    
+    let pct = (progressInRange / totalInRange) * 100;
+    if(pct < 0) pct = 0;
+    if(pct > 100) pct = 100;
+
+    barFillEl.style.width = pct + "%";
+    expCurEl.textContent = `${exp} EXP`;
+    expNextEl.textContent = `${rangeMax} EXP`;
+  } else {
+    nextLabelEl.textContent = "MAX RANK 🏆";
+    barFillEl.style.width = "100%";
+    expCurEl.textContent = `${exp} EXP`;
+    expNextEl.textContent = "";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showPage(id){
+  prevPage=document.querySelector(".screen.active")?.id?.replace("page-","")||"home";
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  document.querySelectorAll(".nav-btns button").forEach(b=>b.classList.remove("active"));
+  if(id==="home") document.getElementById("nav-home").classList.add("active");
+  if(id==="board"){document.getElementById("nav-board").classList.add("active");loadLeaderboard();}
+  if(id==="chat"){document.getElementById("nav-chat").classList.add("active");startChatPoll();}
+  if(id!=="chat") stopChatPoll();
+}
+function goBack(){showPage(prevPage||"home");}
+function openChat(){if(!cu){alert("กรุณาเข้าสู่ระบบก่อน");return;}showPage("chat");}
+
+// ═══════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════
+function switchTab(t){
+  document.getElementById("tab-login").style.display=t==="login"?"block":"none";
+  document.getElementById("tab-reg").style.display=t==="reg"?"block":"none";
+  document.getElementById("tab-login-btn").classList.toggle("active",t==="login");
+  document.getElementById("tab-reg-btn").classList.toggle("active",t==="reg");
+  document.getElementById("pin-result").style.display="none";
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+async function doRegister(){
+  const u=document.getElementById("reg-user").value.trim();
+  const p=document.getElementById("reg-pass").value.trim();
+  const el=document.getElementById("reg-msg");el.innerHTML="";
+  try{
+    const d=await(await fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})})).json();
+    if(d.ok){document.getElementById("new-pin-display").textContent=d.pin;document.getElementById("pin-result").style.display="block";el.innerHTML=`<div class="msg ok">✓ สมัครสมาชิกสำเร็จ!</div>`;}
+    else el.innerHTML=`<div class="msg err">${d.msg}</div>`;
+  }catch{el.innerHTML=`<div class="msg err">เชื่อมต่อ server ไม่ได้</div>`;}
+}
+async function doLogin(){
+  const pin=document.getElementById("login-pin").value.trim();
+  const el=document.getElementById("login-msg");el.innerHTML="";
+  if(pin.length!==6){el.innerHTML=`<div class="msg err">PIN ต้องมี 6 หลัก</div>`;return;}
+  try{
+    const d=await(await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin})})).json();
+    if(d.ok){
+      cu={username:d.username,score:d.score,best_score:d.best_score,games_played:d.games_played,exp:d.exp};
+      document.getElementById("login-pin").value="";
+      goToMenu();
+    }else el.innerHTML=`<div class="msg err">${d.msg}</div>`;
+  }catch{el.innerHTML=`<div class="msg err">เชื่อมต่อ server ไม่ได้</div>`;}
+}
+function goToMenu(){
+  const rank=getRank(cu.exp||0);const title=getTitle(cu.score||0);
+  document.getElementById("menu-username").textContent=cu.username;
+  document.getElementById("menu-score").textContent=cu.score;
+  document.getElementById("menu-best").textContent=cu.best_score;
+  document.getElementById("menu-exp").textContent=cu.exp||0;
+  document.getElementById("menu-games").textContent=cu.games_played;
+  document.getElementById("menu-title-badge").textContent=title.emoji+" "+title.name;
+  document.getElementById("menu-rank-badge").textContent=rank.emoji+" "+rank.name;
+  updateRankBar(cu.exp||0);
+  showPage("menu");
+}
+async function logout(){
+  try {
+    await fetch('/api/logout', { method: 'POST' });
+  } catch(err) {
+    console.error("Logout API error:", err);
+  }
+  cu=null;
+  showPage("home");
+}
+
+// ═══════════════════════════════════════════════════════════
+// DIFFICULTY
+// ═══════════════════════════════════════════════════════════
+function setDiff(d,el){
+  diff=d;
+  document.querySelectorAll(".diff-btn").forEach(b=>b.classList.remove("sel"));
+  el.classList.add("sel");
+  updateDiffInfo();
+}
+function updateDiffInfo(){
+  const cfg=DIFF[diff];
+  document.getElementById("diff-info").textContent=`⏱ ${cfg.time}s/ข้อ  ·  ${cfg.info}${diff==="extreme"?"  ·  🔥 Combo ×2":""}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAME
+// ═══════════════════════════════════════════════════════════
+async function startGame(){gScore=0;gLeft=10;gCombo=0;showPage("game");await nextQ();}
+async function nextQ(){
+  updateGameHUD();
+  try{
+    gQ=await(await fetch("/api/question",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({difficulty:diff})})).json();
+    renderQ();
+  }catch{document.getElementById("g-question").textContent="⚠️ เชื่อมต่อไม่ได้";}
+}
+function renderQ(){
+  document.getElementById("g-question").textContent=gQ.question;
+  document.getElementById("g-diff-tag").textContent=DIFF[diff].label;
+  document.getElementById("feedback-msg").textContent="";
+  const box=document.getElementById("g-choices");box.innerHTML="";
+  gQ.choices.forEach(c=>{
+    const b=document.createElement("button");b.className="choice-btn";b.textContent=c;
+    b.onclick=()=>answerQ(c);box.appendChild(b);
+  });
+  startGTimer(DIFF[diff].time);gQstart=Date.now();
+}
+function startGTimer(s){clearInterval(gTiv);gTval=s;updGTimer();gTiv=setInterval(()=>{gTval--;updGTimer();if(gTval<=0){clearInterval(gTiv);gTimeout();}},1000);}
+function updGTimer(){
+  const p=gTval/DIFF[diff].time;
+  const fill=document.getElementById("timer-fill");
+  fill.style.width=(p*100)+"%";fill.style.background=p>.5?"var(--green)":p>.25?"var(--yellow)":"var(--red)";
+  const tl=document.getElementById("g-time-label");tl.textContent=gTval+"s";tl.style.color=p>.5?"var(--green)":p>.25?"var(--yellow)":"var(--red)";
+}
+function answerQ(c){
+  clearInterval(gTiv);disableC("#g-choices");markC("#g-choices",c,gQ);
+  if(c.toString()===gQ.answer.toString()){const b=gCombo>=3?2:1;const pts=DIFF[diff].pts*b;gScore+=pts;gCombo++;
+    document.getElementById("feedback-msg").innerHTML=`<span style="color:var(--green)">${gCombo>=4?"🔥 COMBO ×"+gCombo+"! +"+pts:"✓ ถูกต้อง! +"+pts}</span>`;
+  }else{gCombo=0;document.getElementById("feedback-msg").innerHTML=`<span style="color:var(--red)">✗ คำตอบคือ ${gQ.answer}</span>`;}
+  gLeft--;updateGameHUD();setTimeout(()=>gLeft<=0?endGame():nextQ(),900);
+}
+function gTimeout(){disableC("#g-choices");markC("#g-choices",null,gQ);gCombo=0;
+  document.getElementById("feedback-msg").innerHTML=`<span style="color:var(--red)">⏰ หมดเวลา! คำตอบคือ ${gQ.answer}</span>`;
+  gLeft--;updateGameHUD();setTimeout(()=>gLeft<=0?endGame():nextQ(),900);
+}
+function updateGameHUD(){
+  document.getElementById("g-score").textContent=gScore;
+  document.getElementById("g-left").textContent=gLeft;
+  const ce=document.getElementById("g-combo");
+  ce.textContent=gCombo>=3?"🔥"+gCombo:gCombo;
+  ce.style.color=gCombo>=3?"var(--yellow)":"var(--text)";
+}
+async function endGame(){
+  if(!cu)return;
+  const pt=getTitle(cu.score||0);
+  try{
+    const d=await(await fetch("/api/score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:cu.username,score:gScore})})).json();
+    if(d.ok){cu.score=d.total_score;cu.best_score=d.best_score;cu.games_played++;}
+  }catch{}
+  const nt=getTitle(cu.score||0);
+  const em=gScore>=24?"🏆":gScore>=14?"🥈":"💪";
+  document.getElementById("result-emoji").textContent=em+" จบเกม!";
+  document.getElementById("result-score").textContent=gScore;
+  document.getElementById("result-best").textContent=cu.best_score;
+  document.getElementById("result-total").textContent=cu.score;
+  const tu=document.getElementById("result-title-up");
+  if(nt.min>pt.min){tu.style.display="block";document.getElementById("result-title-up-text").textContent="🎉 ได้ยศใหม่: "+nt.emoji+" "+nt.name;}
+  else tu.style.display="none";
+  showPage("result");
+}
+
+// ═══════════════════════════════════════════════════════════
+// RANKED
+// ═══════════════════════════════════════════════════════════
+async function startRankedSearch(){
+  if(!cu){alert("กรุณาเข้าสู่ระบบก่อน");return;}
+  showPage("ranked-search");
+  document.getElementById("search-rank-emoji").textContent=getRank(cu.exp||0).emoji;
+  try{
+    const d=await(await fetch("/api/ranked/find",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:cu.username})})).json();
+    if(d.ok){rgOpp=d.opponent;rgOppRank=d.opponent_rank;rgDiff=d.difficulty;setTimeout(startRankedGame,1200);}
+    else{alert(d.msg);showPage("menu");}
+  }catch{alert("เชื่อมต่อไม่ได้");showPage("menu");}
+}
+function startRankedGame(){
+  rgScore=0;rgLeft=10;rgCombo=0;rgOppScore=0;rgTotalTime=0;rgCorrect=0;
+  const myRank=getRank(cu.exp||0);
+  document.getElementById("rg-my-emoji").textContent=myRank.emoji;
+  document.getElementById("rg-my-name").textContent=cu.username;
+  document.getElementById("rg-my-rank").textContent=myRank.name;
+  document.getElementById("rg-opp-emoji").textContent=rgOppRank?.emoji||"🪵";
+  document.getElementById("rg-opp-name").textContent=rgOpp;
+  document.getElementById("rg-opp-rank").textContent=rgOppRank?.name||"ไม้";
+  updateRGHud();showPage("ranked-game");fetchRGQ();
+}
+async function fetchRGQ(){
+  updateRGHud();
+  try{
+    rgQ=await(await fetch("/api/question",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({difficulty:rgDiff})})).json();
+    renderRGQ();
+  }catch{document.getElementById("rg-question").textContent="⚠️";}
+}
+function renderRGQ(){
+  document.getElementById("rg-question").textContent=rgQ.question;
+  document.getElementById("rg-feedback").textContent="";
+  const box=document.getElementById("rg-choices");box.innerHTML="";
+  rgQ.choices.forEach(c=>{const b=document.createElement("button");b.className="choice-btn";b.textContent=c;b.onclick=()=>answerRG(c);box.appendChild(b);});
+  startRGTimer(DIFF[rgDiff].time);gQstart=Date.now();
+}
+function startRGTimer(s){clearInterval(rgTiv);rgTval=s;updRGTimer();rgTiv=setInterval(()=>{rgTval--;updRGTimer();if(rgTval<=0){clearInterval(rgTiv);rgTimeout();}},1000);}
+function updRGTimer(){
+  const p=rgTval/DIFF[rgDiff].time;
+  const fill=document.getElementById("rg-timer-fill");
+  fill.style.width=(p*100)+"%";fill.style.background=p>.5?"var(--green)":p>.25?"var(--yellow)":"var(--red)";
+  const tl=document.getElementById("rg-time-label");tl.textContent=rgTval+"s";tl.style.color=fill.style.background;
+}
+function answerRG(c){
+  const elapsed=(Date.now()-gQstart)/1000;clearInterval(rgTiv);
+  disableC("#rg-choices");markC("#rg-choices",c,rgQ);
+  if(c.toString()===rgQ.answer.toString()){const b=rgCombo>=3?2:1;const pts=DIFF[rgDiff].pts*b;rgScore+=pts;rgCombo++;rgCorrect++;rgTotalTime+=elapsed;
+    document.getElementById("rg-feedback").innerHTML=`<span style="color:var(--green)">✓ +${pts}</span>`;
+  }else{rgCombo=0;document.getElementById("rg-feedback").innerHTML=`<span style="color:var(--red)">✗ ${rgQ.answer}</span>`;}
+  const oChance={extreme:.45,hard:.55,medium:.65,easy:.72}[rgDiff]||.7;
+  if(Math.random()<oChance) rgOppScore+=DIFF[rgDiff].pts;
+  rgLeft--;updateRGHud();setTimeout(()=>rgLeft<=0?endRanked():fetchRGQ(),900);
+}
+function rgTimeout(){disableC("#rg-choices");markC("#rg-choices",null,rgQ);rgCombo=0;
+  document.getElementById("rg-feedback").innerHTML=`<span style="color:var(--red)">⏰ ${rgQ.answer}</span>`;
+  if(Math.random()<.5) rgOppScore+=DIFF[rgDiff].pts;
+  rgLeft--;updateRGHud();setTimeout(()=>rgLeft<=0?endRanked():fetchRGQ(),900);
+}
+function updateRGHud(){
+  document.getElementById("rg-my-score").textContent=rgScore;
+  document.getElementById("rg-opp-score").textContent=rgOppScore;
+  document.getElementById("rg-left").textContent=rgLeft;
+  const avg=rgCorrect>0?(rgTotalTime/rgCorrect):DIFF[rgDiff].time;
+  document.getElementById("rg-exp-est").textContent="~"+(60+Math.max(0,Math.round((15-avg)*3))+rgScore*2);
+}
+async function endRanked(){
+  clearInterval(rgTiv);
+  const won=rgScore>rgOppScore,tied=rgScore===rgOppScore;
+  const avg=rgCorrect>0?(rgTotalTime/rgCorrect):99;
+  const prevRank=getRank(cu.exp||0);
+  let expGained=0;
+  try{
+    const d=await(await fetch("/api/ranked/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({winner:won||tied?cu.username:rgOpp,loser:won||tied?rgOpp:cu.username,winner_time:avg,winner_score:won||tied?rgScore:rgOppScore})})).json();
+    if(d.ok){expGained=won?d.exp_gained:Math.max(5,Math.round(d.exp_gained/5));cu.exp=(cu.exp||0)+expGained;}
+  }catch{}
+  const newRank=getRank(cu.exp||0);
+  document.getElementById("rr-title").textContent=won?"🏆 ชนะ!":tied?"🤝 เสมอ!":"💔 แพ้";
+  document.getElementById("rr-score").textContent=rgScore;
+  document.getElementById("rr-opp-score").textContent=rgOppScore;
+  document.getElementById("rr-exp").textContent="+"+(expGained||0);
+  const ru=document.getElementById("rr-rank-up");
+  if(newRank.id!==prevRank.id){ru.style.display="block";document.getElementById("rr-rank-emoji").textContent=newRank.emoji;document.getElementById("rr-rank-text").textContent="🎉 เลื่อนเป็น "+newRank.name+"!";}
+  else ru.style.display="none";
+  updateRankBar(cu.exp||0);
+  document.getElementById("menu-exp").textContent=cu.exp||0;
+  document.getElementById("menu-rank-badge").textContent=newRank.emoji+" "+newRank.name;
+  showPage("ranked-result");
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function disableC(sel){document.querySelectorAll(sel+" .choice-btn").forEach(b=>b.disabled=true);}
+function markC(sel,chosen,q){
+  document.querySelectorAll(sel+" .choice-btn").forEach(b=>{
+    if(b.textContent.toString()===q.answer.toString()) b.classList.add("correct");
+    else if(chosen !== null && b.textContent.toString()===chosen.toString()) b.classList.add("wrong");
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════════════
+async function loadLeaderboard(){
+  const el=document.getElementById("lb-content");
+  el.innerHTML=`<div style="color:var(--muted);text-align:center;padding:40px">กำลังโหลด...</div>`;
+  try{
+    const response = await fetch("/api/leaderboard");
+    const board = await response.json();
+    if(!board || !board.length){el.innerHTML=`<div style="color:var(--muted);text-align:center;padding:40px">ยังไม่มีข้อมูล</div>`;return;}
+    const medals=["🥇","🥈","🥉"];
+    let h=`<table class="lb-table"><thead><tr><th>#</th><th>ชื่อ</th><th>ยศ</th><th>แรงค์</th><th>EXP</th><th>Best Score</th><th>เกม</th></tr></thead><tbody>`;
+    board.forEach((e,i)=>{
+      const titleEmoji = e.title_emoji || "🌹";
+      const titleName = e.title_name || "มือใหม่";
+      const rankEmoji = e.rank_emoji || "🪵";
+      const rankName = e.rank_name || "แรงค์ไม้";
+      const expVal = e.exp !== undefined ? e.exp : 0;
+      const bestScore = e.best_score !== undefined ? e.best_score : 0;
+      const gamesPlayed = e.games_played !== undefined ? e.games_played : 0;
+
+      h+=`<tr class="${i<3?"lb-top":""}">
+        <td class="lb-rank">${medals[i]||(i+1)}</td>
+        <td style="font-weight:800">${e.username}</td>
+        <td style="font-size:.82rem">${titleEmoji} ${titleName}</td>
+        <td style="font-size:.82rem">${rankEmoji} ${rankName}</td>
+        <td style="color:var(--green);font-family:var(--mono)">${expVal}</td>
+        <td class="lb-score">${bestScore}</td>
+        <td style="color:var(--muted)">${gamesPlayed}</td>
+      </tr>`;
+    });
+    h+=`</tbody></table>`;el.innerHTML=h;
+  }catch(err){
+    console.error(err);
+    el.innerHTML=`<div style="color:var(--red);text-align:center;padding:40px">โหลดไม่ได้ (เกิดข้อผิดพลาดในการโหลดสคริปต์)</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════
+function startChatPoll(){loadChat();chatIv=setInterval(loadChat,3000);}
+function stopChatPoll(){clearInterval(chatIv);}
+async function loadChat(){
+  try{
+    const msgs=await(await fetch("/api/chat")).json();
+    const box=document.getElementById("chat-box");
+    const atBot=box.scrollHeight-box.scrollTop-box.clientHeight<70;
+    box.innerHTML="";
+    msgs.forEach(m=>{
+      const d=document.createElement("div");d.className="chat-row";
+      const ini=m.user.slice(0,2).toUpperCase();
+      const ts=new Date(m.ts*1000).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+      d.innerHTML=`<div class="chat-av">${ini}</div>
+        <div class="chat-body">
+          <div class="chat-meta">
+            <span class="chat-user">${m.user}</span>
+            <span class="chat-badges">${m.rank_emoji||""} ${m.title_emoji||""}</span>
+            <span class="chat-time">${ts}</span>
+          </div>
+          <div class="chat-txt">${esc(m.text)}</div>
+        </div>`;
+      box.appendChild(d);
+    });
+    if(atBot) box.scrollTop=box.scrollHeight;
+  }catch{}
+}
+async function sendChat(){
+  if(!cu){document.getElementById("chat-msg").innerHTML=`<div class="msg err">กรุณาเข้าสู่ระบบก่อน</div>`;return;}
+  const inp=document.getElementById("chat-input");const txt=inp.value.trim();if(!txt)return;
+  try{
+    const d=await(await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:cu.username,text:txt})})).json();
+    if(d.ok){inp.value="";loadChat();}
+  }catch{}
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════════════════════
+async function doAdminLogin(){
+  const u=document.getElementById("adm-user").value.trim();
+  const p=document.getElementById("adm-pass").value.trim();
+  const el=document.getElementById("adm-login-msg");
+  try{
+    const d=await(await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})})).json();
+    if(d.ok){adminCreds={u,p};showPage("admin");loadAdminUsers();loadCurrentTheme();}
+    else el.innerHTML=`<div class="msg err">${d.msg}</div>`;
+  }catch{el.innerHTML=`<div class="msg err">เชื่อมต่อไม่ได้</div>`;}
+}
+async function loadCurrentTheme(){
+  try{const d=await(await fetch("/api/system/status")).json();if(d.theme)applyTheme(d.theme,false);}catch{}
+}
+async function loadAdminUsers(){
+  if(!adminCreds)return;
+  const tbody=document.getElementById("admin-table-body");
+  tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">กำลังโหลด...</td></tr>`;
+  try{
+    const d=await(await fetch("/api/admin/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:adminCreds.u,password:adminCreds.p})})).json();
+    if(!d.ok){tbody.innerHTML=`<tr><td colspan="9" style="color:var(--red)">Unauthorized</td></tr>`;return;}
+    if(!d.users.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีผู้ใช้</td></tr>`;return;}
+    tbody.innerHTML=d.users.map((u,i)=>`
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td style="font-weight:800">${u.username}</td>
+        <td class="pin-cell">${u.pin}</td>
+        <td style="font-size:.78rem">${u.title}</td>
+        <td style="font-size:.78rem">${u.rank}</td>
+        <td style="color:var(--green);font-family:var(--mono)">${u.exp}</td>
+        <td style="color:var(--yellow);font-weight:800">${u.best_score}</td>
+        <td style="color:var(--muted)">${u.games_played}</td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="resetPin('${u.username}')">🔁 PIN</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">🗑</button>
+        </td>
+      </tr>`).join("");
+  }catch{tbody.innerHTML=`<tr><td colspan="9" style="color:var(--red)">โหลดไม่ได้</td></tr>`;}
+}
+async function resetPin(username){
+  if(!confirm(`รีเซ็ต PIN ของ "${username}"?`))return;
+  const d=await(await fetch("/api/admin/reset-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({admin_user:adminCreds.u,admin_pass:adminCreds.p,username})})).json();
+  if(d.ok){document.getElementById("admin-msg").innerHTML=`<div class="msg ok">✓ PIN ใหม่ของ ${username}: <b style="font-family:var(--mono);letter-spacing:.1em;font-size:1.1em">${d.new_pin}</b></div>`;loadAdminUsers();}
+}
+async function deleteUser(username){
+  if(!confirm(`ลบบัญชี "${username}" จริงหรือ?`))return;
+  const d=await(await fetch("/api/admin/delete-user",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({admin_user:adminCreds.u,admin_pass:adminCreds.p,username})})).json();
+  if(d.ok){document.getElementById("admin-msg").innerHTML=`<div class="msg ok">✓ ลบ ${username} แล้ว</div>`;loadAdminUsers();}
+}
+async function adminResetRanks(){
+  if(!confirm("⚠️ รีเซ็ต EXP และแรงค์ของผู้เล่นทั้งหมด?\nทุกคนที่ออนไลน์อยู่จะเห็นข้อความแจ้งเตือน"))return;
+  const d=await(await fetch("/api/admin/reset-ranks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({admin_user:adminCreds.u,admin_pass:adminCreds.p})})).json();
+  if(d.ok){document.getElementById("admin-msg").innerHTML=`<div class="msg ok">✓ รีแรงค์แล้ว ผู้เล่นออนไลน์จะเห็นแจ้งเตือน</div>`;loadAdminUsers();}
+}
+async function adminClearChat(){
+  if(!confirm("ล้างแชทออกทั้งหมด?"))return;
+  const d=await(await fetch("/api/chat/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({admin_user:adminCreds.u,admin_pass:adminCreds.p})})).json();
+  if(d.ok) document.getElementById("admin-msg").innerHTML=`<div class="msg ok">✓ ล้างแชทแล้ว</div>`;
+}
+async function setTheme(t){
+  applyTheme(t,false);
+  try{
+    const d=await(await fetch("/api/admin/set-theme",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({admin_user:adminCreds.u,admin_pass:adminCreds.p,theme:t})})).json();
+    if(d.ok) document.getElementById("theme-msg").innerHTML=`<div class="msg ok" style="margin-top:8px">✓ เปลี่ยนธีมเป็น "${t}" แล้ว ทุกคนจะเห็นธีมนี้</div>`;
+  }catch{document.getElementById("theme-msg").innerHTML=`<div class="msg err">เปลี่ยนธีมไม่ได้</div>`;}
+}
+function logout_admin(){adminCreds=null;showPage("home");}
+</script>
+</body>
+</html>
