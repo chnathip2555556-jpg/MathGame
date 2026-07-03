@@ -23,7 +23,7 @@ app.config.update(
 # 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์
 # -------------------------------------------------------------
 # ⚠️ สำคัญมาก: ใส่รหัสผ่านของฐานข้อมูลของคุณแทนที่ตรงคำว่า <ใส่รหัสผ่านตรงนี้> (ห้ามลบเครื่องหมายปีกกาแหลมออก)
-MONGO_URI = "mongodb+srv://chnathip2555556_db_user:db_password@mathgame.n8hquki.mongodb.net/?appName=MathGame"
+MONGO_URI = "mongodb+srv://chnathip2555556_db_user:Mn2g8IG69NuRtfru@mathgame.n8hquki.mongodb.net/?appName=MathGame"
 
 client = MongoClient(MONGO_URI)
 db = client["MathGameDB"]       # สร้างชื่อ Database บนคลาวด์
