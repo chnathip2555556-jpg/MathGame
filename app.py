@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
-import json, os, random, string, time, requests
+import os, random, string, time, requests
 from datetime import timedelta
+from pymongo import MongoClient  # 🔌 นำเข้าเครื่องมือสำหรับเชื่อมต่อ MongoDB
 
 # ⚙️ ดึงตำแหน่งโฟลเดอร์สำหรับ Render
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -9,7 +10,7 @@ app = Flask(__name__, static_url_path='', static_folder=current_dir)
 
 CORS(app, supports_credentials=True)
 
-# 📌 ระบบจำคุกกี้บนบราวเซอร์ (ทำให้ผู้เล่นไม่ต้องล็อกอินใหม่บ่อยๆ)
+# 📌 ระบบจำคุกกี้บนบราวเซอร์
 app.secret_key = "mathgame_super_secret_key_999"
 app.permanent_session_lifetime = timedelta(days=7)
 app.config.update(
@@ -19,18 +20,26 @@ app.config.update(
 )
 
 # -------------------------------------------------------------
-# ⚙️ ตั้งค่า Google API (นำค่าจาก Google Cloud Console มาวางตรงนี้)
+# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์
+# -------------------------------------------------------------
+# ⚠️ สำคัญมาก: ใส่รหัสผ่านของฐานข้อมูลของคุณแทนที่ตรงคำว่า <ใส่รหัสผ่านตรงนี้> (ห้ามลบเครื่องหมายปีกกาแหลมออก)
+MONGO_URI = "mongodb+srv://chnathip2555556_db_user:<db_password>@mathgame.n8hquki.mongodb.net/?appName=MathGame"
+
+client = MongoClient(MONGO_URI)
+db = client["MathGameDB"]       # สร้างชื่อ Database บนคลาวด์
+db_users = db["users"]          # ตารางเก็บข้อมูลผู้ใช้แทน users.json
+db_chat = db["chat"]            # ตารางเก็บแชทแทน chat.json
+db_system = db["system"]        # ตารางเก็บตั้งค่าระบบแทน system.json
+
+# -------------------------------------------------------------
+# ⚙️ ตั้งค่า Google API
 # -------------------------------------------------------------
 GOOGLE_CLIENT_ID = "284119968090-n4sucq5q75o8us0ra0v44jkoo33qag8p.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
-# ⚠️ เปลี่ยนตรงนี้เป็น URL เว็บ Render ของน้องด้วยนะครับ
 GOOGLE_REDIRECT_URI = "https://mathgamely.onrender.com/login/google/callback" 
 
 ADMIN_USERNAME = "garfiw_dev"
 ADMIN_PASSWORD = "vip888admin"
-USERS_FILE  = "users.json"
-CHAT_FILE   = "chat.json"
-SYSTEM_FILE = "system.json"
 VERSION     = "3.2.0"        
 DEV_NAME    = "garfiw_dev"
 
@@ -68,19 +77,38 @@ def get_title(score):
         if score >= ti["min"]: t = ti
     return t
 
-def load_json(path, default):
-    if not os.path.exists(path): return default
-    with open(path,"r",encoding="utf-8") as f: return json.load(f)
+# 🔄 ปรับปรุงฟังก์ชันการดึงข้อมูลจากเดิมที่เป็นไฟล์มาดึงจาก MongoDB แทน
+def load_users():
+    users = {}
+    for u in db_users.find():
+        users[u["username"]] = u["data"]
+    return users
 
-def save_json(path, data):
-    with open(path,"w",encoding="utf-8") as f: json.dump(data,f,ensure_ascii=False,indent=2)
+def save_users(users):
+    for username, data in users.items():
+        db_users.update_one({"username": username}, {"$set": {"data": data}}, upsert=True)
 
-def load_users():   return load_json(USERS_FILE, {})
-def save_users(u):  save_json(USERS_FILE, u)
-def load_chat():    return load_json(CHAT_FILE, [])
-def save_chat(c):   save_json(CHAT_FILE, c)
-def load_system():  return load_json(SYSTEM_FILE, {"reset_flag":False,"reset_time":0,"theme":"dark"})
-def save_system(s): save_json(SYSTEM_FILE, s)
+def load_chat():
+    chats = list(db_chat.find().sort("ts", 1))
+    for c in chats:
+        if "_id" in c: del c["_id"]
+    return chats
+
+def save_chat(chat_list):
+    # ปรับปรุงให้บันทึกเฉพาะข้อความที่ยังไม่มีในระบบ หรือบันทึกใหม่ทั้งหมดแบบปลอดภัย
+    db_chat.delete_many({})
+    if chat_list:
+        db_chat.insert_many(chat_list)
+
+def load_system():
+    sys = db_system.find_one({"type": "config"})
+    if not sys:
+        return {"reset_flag": False, "reset_time": 0, "theme": "dark"}
+    if "_id" in sys: del sys["_id"]
+    return sys
+
+def save_system(s):
+    db_system.update_one({"type": "config"}, {"$set": s}, upsert=True)
 
 def gen_pin():
     users = load_users()
@@ -146,9 +174,6 @@ def index():
 @app.route("/api/info")
 def api_info(): return jsonify({"version":VERSION,"dev":DEV_NAME})
 
-# -------------------------------------------------------------
-# 📌 เส้นทางย้ายไปหน้าล็อกอิน Google
-# -------------------------------------------------------------
 @app.route("/login/google")
 def login_google():
     google_provider_url = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -163,14 +188,10 @@ def login_google():
     request_url = f"{google_provider_url}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
     return redirect(request_url)
 
-# -------------------------------------------------------------
-# 📌 Callback รับข้อมูลกลับจาก Google
-# -------------------------------------------------------------
 @app.route("/login/google/callback")
 def google_callback():
     code = request.args.get("code")
-    if not code:
-        return "Authentication failed (No code)", 400
+    if not code: return "Authentication failed (No code)", 400
 
     token_url = "https://oauth2.googleapis.com/token"
     token_data = {
@@ -211,7 +232,7 @@ def google_callback():
         session["username"] = email
         session["pin"] = users[email]["pin"]
 
-        return redirect("/")
+        return redirect(url_for("index"))
     except Exception as e:
         return f"Error: {str(e)}", 500
 
@@ -312,9 +333,9 @@ def admin_delete_user():
     data = request.json
     if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
         return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    target = data.get("username"); users = load_users()
-    if target not in users: return jsonify({"ok":False,"msg":"ไม่พบผู้ใช้"}),404
-    del users[target]; save_users(users)
+    target = data.get("username")
+    # ลบผู้ใช้ออกจาก MongoDB ตรงๆ
+    db_users.delete_one({"username": target})
     return jsonify({"ok":True})
 
 @app.route("/api/admin/reset-ranks",methods=["POST"])
@@ -470,3 +491,4 @@ def chat_delete():
 if __name__=="__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
