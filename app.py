@@ -29,7 +29,7 @@ db_chat = db["chat"]
 db_system = db["system"]        
 
 ADMIN_USERNAME = "garfiw_dev"
-ADMIN_PASSWORD = "vip888admin"  # เพิ่มตัวแปร Password แอดมินสำหรับส่งให้ระบบตรวจสอบสิทธิ์
+ADMIN_PASSWORD = "vip888admin"  # รหัสผ่านสำหรับระบบตรวจสอบสิทธิ์ของแอดมิน
 VERSION     = "4.0.0"        
 DEV_NAME    = "garfiw_dev"
 
@@ -52,7 +52,7 @@ TITLES = [
     {"name":"อัลเบิร์ต ไอน์สไตน์","emoji":"🧠🧠","min":100000},
 ]
 
-# ⚙️ Functions ส่วนกลางใช้งานร่วมกัน (และใช้แชร์ให้ไฟล์แอดมินเรียกข้ามมาได้)
+# ⚙️ Functions ส่วนกลางใช้งานร่วมกัน
 def get_rank(exp):
     r = RANKS[0]
     for rk in RANKS:
@@ -92,6 +92,10 @@ def load_system():
         return {"reset_flag": False, "reset_time": 0, "theme": "dark", "maintenance": False, "announcement": "ยินดีต้อนรับสู่ MathGame!"}
     if "_id" in sys: del sys["_id"]
     return sys
+
+# ✨ เพิ่มฟังก์ชัน save_system เพื่อแก้ไขปัญหา NameError บน Render
+def save_system(sys_data):
+    db_system.update_one({"type": "config"}, {"$set": sys_data}, upsert=True)
 
 def gen_pin():
     users = load_users()
@@ -269,12 +273,12 @@ app.config.update(
     load_users_func=load_users,
     save_users_func=save_users,
     load_system_func=load_system,
-    save_system_func=save_system,
+    save_system_func=save_system,  # แก้ไขจุดบกพร่องเรื่องฟังก์ชันไม่มีอยู่จริงเรียบร้อย
     save_chat_func=save_chat,
     gen_pin_func=gen_pin
 )
 
-# นำโมดูลระบบแอดมินมาลงทะเบียนเป็น Blueprint
+# นำโมดูลระบบแอดมินมาลงทะเบียนเป็น Blueprint แนะนำให้ทำความสะอาดหลังจากอัปเดต Config
 from admin_routes import admin_bp
 app.register_blueprint(admin_bp)
 
