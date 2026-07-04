@@ -29,6 +29,7 @@ db_chat = db["chat"]
 db_system = db["system"]        
 
 ADMIN_USERNAME = "garfiw_dev"
+ADMIN_PASSWORD = "vip888admin"  # เพิ่มตัวแปร Password แอดมินสำหรับส่งให้ระบบตรวจสอบสิทธิ์
 VERSION     = "4.0.0"        
 DEV_NAME    = "garfiw_dev"
 
@@ -252,9 +253,29 @@ def chat_post():
     msgs.append({"user":username,"text":text,"rank_emoji":rank_emoji,"title_emoji":title_emoji,"ts":int(time.time())})
     save_chat(msgs); return jsonify({"ok":True})
 
-# นำโมดูลระบบแอดมินมาลงทะเบียนเชื่อมต่อเข้าไฟล์หลักตรงนี้
+# -------------------------------------------------------------
+# ⚙️ แชร์ตัวแปรและฟังก์ชันให้ระบบแอดมินนำไปใช้งานผ่าน Blueprint อย่างปลอดภัย
+# -------------------------------------------------------------
+app.config.update(
+    db_client=db,
+    ADMIN_USERNAME=ADMIN_USERNAME,
+    ADMIN_PASSWORD=ADMIN_PASSWORD,
+    RANKS=RANKS,
+    CURRENT_DIR=current_dir,
+    get_rank_func=get_rank,
+    get_title_func=get_title,
+    load_users_func=load_users,
+    save_users_func=save_users,
+    load_system_func=load_system,
+    save_system_func=save_system,
+    save_chat_func=save_chat,
+    gen_pin_func=gen_pin
+)
+
+# นำโมดูลระบบแอดมินมาลงทะเบียนเป็น Blueprint
 from admin_routes import admin_bp
 app.register_blueprint(admin_bp)
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
