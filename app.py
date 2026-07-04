@@ -29,8 +29,8 @@ db_chat = db["chat"]
 db_system = db["system"]        
 
 ADMIN_USERNAME = "garfiw_dev"
-ADMIN_PASSWORD = "vip888admin"  # รหัสผ่านสำหรับระบบตรวจสอบสิทธิ์ของแอดมิน
-VERSION     = "4.0.0"        
+ADMIN_PASSWORD = "vip888admin"  
+VERSION     = "4.1.0"  # อัปเดตเวอร์ชันแก้บั๊ก      
 DEV_NAME    = "garfiw_dev"
 
 RANKS = [
@@ -93,7 +93,6 @@ def load_system():
     if "_id" in sys: del sys["_id"]
     return sys
 
-# ✨ เพิ่มฟังก์ชัน save_system เพื่อแก้ไขปัญหา NameError บน Render
 def save_system(sys_data):
     db_system.update_one({"type": "config"}, {"$set": sys_data}, upsert=True)
 
@@ -150,7 +149,8 @@ def generate_question(difficulty):
 @app.route("/")
 def index(): 
     sys = load_system()
-    if sys.get("maintenance", False) and "username" not in session:
+    # ✨ แก้ไข: ถ้าเปิดโหมดปิดปรับปรุง และไม่ใช่แอดมินเข้าใช้งาน จะเข้าเว็บไม่ได้เด็ดขาด
+    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME:
         return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน กรุณาลองใหม่ภายหลัง</h1>", 503
     return send_from_directory(current_dir, "index.html")
 
@@ -162,6 +162,9 @@ def api_info(): return jsonify({"version":VERSION,"dev":DEV_NAME})
 # -------------------------------------------------------------
 @app.route("/api/register",methods=["POST"])
 def register():
+    sys = load_system()
+    if sys.get("maintenance", False): return jsonify({"ok":False,"msg":"เซิร์ฟเวอร์ปิดปรับปรุงอยู่"}), 503
+    
     data = request.json
     username = data.get("username","").strip()
     password = data.get("password","").strip()
@@ -212,10 +215,17 @@ def logout():
 
 @app.route("/api/question",methods=["POST"])
 def question():
+    sys = load_system()
+    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
+        return jsonify({"ok":False, "msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
     return jsonify(generate_question(request.json.get("difficulty","easy")))
 
 @app.route("/api/score",methods=["POST"])
 def submit_score():
+    sys = load_system()
+    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
+        return jsonify({"ok":False, "msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
+
     data = request.json; username = data.get("username"); new_score = data.get("score",0)
     users = load_users(); user_key = username
     if username not in users:
@@ -223,10 +233,30 @@ def submit_score():
             if v.get("display_name") == username: user_key = k; break
     if user_key not in users: return jsonify({"ok":False,"msg":"ไม่พบผู้ใช้"}),404
     if users[user_key].get("banned", False): return jsonify({"ok":False,"msg":"คุณถูกแบน"}), 403
-    users[user_key]["score"]+=new_score; users[user_key]["games_played"]+=1
-    if new_score>users[user_key]["best_score"]: users[user_key]["best_score"]=new_score
+    
+    # ✨ แก้ไขระบบเก็บคะแนนและให้ EXP สำหรับแรงค์เกม!
+    users[user_key]["score"] += new_score
+    users[user_key]["games_played"] += 1
+    
+    # 🌟 เพิ่มบรรทัดนี้: ได้รับ EXP เท่ากับจำนวนคะแนนที่ทำได้ในรอบนั้น (หรือคูณเพิ่มได้ตามใจชอบ)
+    users[user_key]["exp"] = users[user_key].get("exp", 0) + new_score 
+    
+    # อัปเดต ID แรงค์ปัจจุบันของผู้เล่นเก็บลงฐานข้อมูลด้วย
+    current_rank_info = get_rank(users[user_key]["exp"])
+    users[user_key]["rank_id"] = current_rank_info["id"]
+
+    if new_score > users[user_key]["best_score"]: 
+        users[user_key]["best_score"] = new_score
+        
     save_users(users)
-    return jsonify({"ok":True,"total_score":users[user_key]["score"],"best_score":users[user_key]["best_score"],"rank":get_rank(users[user_key].get("exp",0)),"title":get_title(users[user_key]["score"])})
+    return jsonify({
+        "ok":True,
+        "total_score":users[user_key]["score"],
+        "best_score":users[user_key]["best_score"],
+        "exp":users[user_key]["exp"],
+        "rank":current_rank_info,
+        "title":get_title(users[user_key]["score"])
+    })
 
 @app.route("/api/leaderboard")
 def leaderboard():
@@ -243,6 +273,10 @@ def chat_get(): return jsonify(load_chat()[-80:])
 
 @app.route("/api/chat",methods=["POST"])
 def chat_post():
+    sys = load_system()
+    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
+        return jsonify({"ok":False}), 503
+
     data = request.json; username=data.get("username","").strip(); text=data.get("text","").strip()
     if not username or not text: return jsonify({"ok":False}),400
     users = load_users(); user_key = username
@@ -273,12 +307,11 @@ app.config.update(
     load_users_func=load_users,
     save_users_func=save_users,
     load_system_func=load_system,
-    save_system_func=save_system,  # แก้ไขจุดบกพร่องเรื่องฟังก์ชันไม่มีอยู่จริงเรียบร้อย
+    save_system_func=save_system,  
     save_chat_func=save_chat,
     gen_pin_func=gen_pin
 )
 
-# นำโมดูลระบบแอดมินมาลงทะเบียนเป็น Blueprint แนะนำให้ทำความสะอาดหลังจากอัปเดต Config
 from admin_routes import admin_bp
 app.register_blueprint(admin_bp)
 
