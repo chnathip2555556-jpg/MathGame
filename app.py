@@ -94,8 +94,10 @@ def gen_pin():
 @app.route("/")
 def index(): 
     sys = load_system()
-    if sys.get("maintenance", False) and "username" not in session:
-        return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน</h1>", 503
+    # 🛠️ ถ้าเปิดโหมดปิดปรับปรุง และคนที่เข้าไม่ใช่แอดมิน ให้บล็อกส่งสถานะ 503 ทันที
+    if sys.get("maintenance", False):
+        if "username" not in session or session.get("username") != ADMIN_USERNAME:
+            return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน</h1>", 503
     return send_from_directory(current_dir, "index.html")
 
 @app.route("/admin")
@@ -306,6 +308,13 @@ def login():
 
 @app.route("/api/check-auth", methods=["GET"])
 def check_auth():
+    sys = load_system()
+    is_maintenance = sys.get("maintenance", False)
+    
+    # 🛠️ ตรวจสอบโหมดปิดปรับปรุงใน API ถ้าเปิดอยู่และไม่ใช่แอดมิน ให้ดีดออกทันที
+    if is_maintenance and session.get("username") != ADMIN_USERNAME:
+        return jsonify({"logged_in": False, "maintenance": True, "msg": "ระบบปิดปรับปรุง"}), 200
+
     if "username" in session and "pin" in session:
         users = load_users()
         username = session["username"]
@@ -314,8 +323,18 @@ def check_auth():
             if info.get("banned", False): return jsonify({"logged_in":False}), 200
             rank  = get_rank(info.get("exp",0))
             title = get_title(info.get("score",0))
-            return jsonify({"logged_in":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":rank,"title":title})
-    return jsonify({"logged_in":False}), 200
+            return jsonify({
+                "logged_in": True,
+                "username": info.get("display_name", username),
+                "score": info["score"],
+                "best_score": info["best_score"],
+                "games_played": info["games_played"],
+                "exp": info.get("exp",0),
+                "rank": rank,
+                "title": title,
+                "maintenance": is_maintenance
+            })
+    return jsonify({"logged_in": False, "maintenance": is_maintenance}), 200
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
@@ -372,4 +391,3 @@ def chat_post():
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
