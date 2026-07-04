@@ -1,29 +1,29 @@
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, current_app
 import time
 
-# สร้าง Blueprint แทนการดึงค่าจาก __main__ โดยตรงเพื่อแก้บั๊ก Circular Import
+# สร้าง Blueprint สำหรับระบบแอดมิน
 admin_bp = Blueprint('admin_routes', __name__)
 
-# ดึงฟังก์ชันและตัวแปรส่วนกลางแบบปลอดภัยเมื่อมีการเรียกใช้งานจริงภายในฟังก์ชัน
+# ฟังก์ชันดึงตัวแปรส่วนกลางจากฐานข้อมูลและตัวแปรหลักของระบบผ่าน current_app
 def get_globals():
-    import __main__
+    # เข้าถึงฐานข้อมูลและตัวแปรที่ผูกไว้กับตัวแปร app หลัก
+    db = current_app.config.get('db_client')
     return {
-        "app": __main__.app,
-        "db_users": __main__.db_users,
-        "db_system": __main__.db_system,
-        "db_chat": __main__.db_chat,
-        "ADMIN_USERNAME": __main__.ADMIN_USERNAME,
-        "ADMIN_PASSWORD": __main__.ADMIN_PASSWORD,
-        "RANKS": __main__.RANKS,
-        "current_dir": __main__.current_dir,
-        "get_rank": __main__.get_rank,
-        "get_title": __main__.get_title,
-        "load_users": __main__.load_users,
-        "save_users": __main__.save_users,
-        "load_system": __main__.load_system,
-        "save_system": __main__.save_system,
-        "save_chat": __main__.save_chat,
-        "gen_pin": __main__.gen_pin
+        "db_users": db["users"] if db else None,
+        "db_system": db["system"] if db else None,
+        "db_chat": db["chat"] if db else None,
+        "ADMIN_USERNAME": current_app.config.get('ADMIN_USERNAME'),
+        "ADMIN_PASSWORD": current_app.config.get('ADMIN_PASSWORD'),
+        "RANKS": current_app.config.get('RANKS'),
+        "current_dir": current_app.config.get('CURRENT_DIR'),
+        "get_rank": current_app.config.get('get_rank_func'),
+        "get_title": current_app.config.get('get_title_func'),
+        "load_users": current_app.config.get('load_users_func'),
+        "save_users": current_app.config.get('save_users_func'),
+        "load_system": current_app.config.get('load_system_func'),
+        "save_system": current_app.config.get('save_system_func'),
+        "save_chat": current_app.config.get('save_chat_func'),
+        "gen_pin": current_app.config.get('gen_pin_func')
     }
 
 @admin_bp.route("/admin")
@@ -94,7 +94,7 @@ def admin_manage_player():
         user_data["exp"] = user_data.get("exp", 0) + int(value)
         user_data["rank_id"] = g["get_rank"](user_data["exp"])["id"]
     elif action == "reduce_exp":
-        user_data["exp"] = max(0, user_data.get("exp", 0) - int(value))
+        user_data["exp"] = max(0, user_data["exp", 0] - int(value))
         user_data["rank_id"] = g["get_rank"](user_data["exp"])["id"]
     elif action == "set_rank":
         for rk in g["RANKS"]:
@@ -273,3 +273,4 @@ def admin_set_player_luck():
     users[target_username]["lucky_mode"] = mode
     g["save_users"](users)
     return jsonify({"ok": True, "msg": f"เปลี่ยนโหมดผู้เล่นเป็น {mode} สำเร็จแล้ว!"})
+
