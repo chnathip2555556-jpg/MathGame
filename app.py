@@ -1,6 +1,6 @@
-from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
-import os, random, string, time, requests
+import os, random, string, time
 from datetime import timedelta
 from pymongo import MongoClient
 
@@ -18,7 +18,7 @@ app.config.update(
 )
 
 # -------------------------------------------------------------
-# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas
+# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์
 # -------------------------------------------------------------
 MONGO_URI = "mongodb+srv://chnathip2555556_db_user:Mn2g8IG69NuRtfru@mathgame.n8hquki.mongodb.net/?appName=MathGame"
 
@@ -27,11 +27,9 @@ db = client["MathGameDB"]
 db_users = db["users"]          
 db_chat = db["chat"]            
 db_system = db["system"]        
-db_reports = db["reports"]  # 📦 ตารางใหม่สำหรับเก็บรายงานแจ้งปัญหา
 
 ADMIN_USERNAME = "garfiw_dev"
-ADMIN_PASSWORD = "vip888admin"
-VERSION     = "4.1.0"        
+VERSION     = "4.0.0"        
 DEV_NAME    = "garfiw_dev"
 
 RANKS = [
@@ -53,6 +51,7 @@ TITLES = [
     {"name":"อัลเบิร์ต ไอน์สไตน์","emoji":"🧠🧠","min":100000},
 ]
 
+# ⚙️ Functions ส่วนกลางใช้งานร่วมกัน (และใช้แชร์ให้ไฟล์แอดมินเรียกข้ามมาได้)
 def get_rank(exp):
     r = RANKS[0]
     for rk in RANKS:
@@ -75,14 +74,23 @@ def save_users(users):
     for username, data in users.items():
         db_users.update_one({"username": username}, {"$set": {"data": data}}, upsert=True)
 
+def load_chat():
+    chats = list(db_chat.find().sort("ts", 1))
+    for c in chats:
+        if "_id" in c: del c["_id"]
+    return chats
+
+def save_chat(chat_list):
+    db_chat.delete_many({})
+    if chat_list:
+        db_chat.insert_many(chat_list)
+
 def load_system():
     sys = db_system.find_one({"type": "config"})
     if not sys:
-        return {"maintenance": False, "announcement": "ยินดีต้อนรับสู่ MathGame!", "theme": "dark"}
+        return {"reset_flag": False, "reset_time": 0, "theme": "dark", "maintenance": False, "announcement": "ยินดีต้อนรับสู่ MathGame!"}
+    if "_id" in sys: del sys["_id"]
     return sys
-
-def save_system(s):
-    db_system.update_one({"type": "config"}, {"$set": s}, upsert=True)
 
 def gen_pin():
     users = load_users()
@@ -91,190 +99,63 @@ def gen_pin():
         pin = "".join(random.choices(string.digits, k=6))
         if pin not in existing: return pin
 
+def generate_question(difficulty):
+    if difficulty == "easy":      ops, r = ["+","-"], 20
+    elif difficulty == "medium":  ops, r = ["+","-","*"], 50
+    elif difficulty == "hard":    ops, r = ["+","-","*","/"], 100
+    else:                         ops, r = ["+","-","*","/","**","%"], 999
+
+    op = random.choice(ops)
+    if op == "**":
+        a = random.randint(2,9); b = random.randint(2,4); ans = a**b
+        wrongs = set()
+        while len(wrongs) < 3:
+            w = ans + random.randint(-max(10,ans//5), max(10,ans//5))
+            if w != ans and w > 0: wrongs.add(w)
+        choices = list(wrongs)+[ans]; random.shuffle(choices)
+        return {"question":f"{a}^{b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
+    elif op == "%":
+        a = random.randint(10,999); b = random.randint(2,20); ans = a%b
+        wrongs = set()
+        while len(wrongs) < 3:
+            w = random.randint(0,b-1)
+            if w != ans: wrongs.add(w)
+        choices = list(wrongs)+[ans]; random.shuffle(choices)
+        return {"question":f"{a} mod {b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
+    elif op == "/":
+        b = random.randint(2,10); ans = random.randint(1,10); a = b*ans
+    elif op == "*":
+        lim = 20 if difficulty=="extreme" else 12
+        a = random.randint(2,lim); b = random.randint(2,lim); ans = a*b
+    elif op == "-":
+        a = random.randint(10,r); b = random.randint(1,a); ans = a-b
+    else:
+        a = random.randint(1,r); b = random.randint(1,r); ans = a+b
+
+    wr = max(5, abs(ans)//4) if difficulty=="extreme" else 10
+    wrongs = set()
+    while len(wrongs) < 3:
+        offset = random.randint(1,wr)
+        w = ans+offset if random.random()<0.5 else ans-offset
+        if w != ans and w > 0: wrongs.add(w)
+    choices = list(wrongs)+[ans]; random.shuffle(choices)
+    op_d = {"*":"×","/":"÷"}.get(op,op)
+    return {"question":f"{a} {op_d} {b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
+
 @app.route("/")
 def index(): 
     sys = load_system()
-    # 🛠️ ถ้าเปิดโหมดปิดปรับปรุง และคนที่เข้าไม่ใช่แอดมิน ให้บล็อกส่งสถานะ 503 ทันที
-    if sys.get("maintenance", False):
-        if "username" not in session or session.get("username") != ADMIN_USERNAME:
-            return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน</h1>", 503
+    if sys.get("maintenance", False) and "username" not in session:
+        return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน กรุณาลองใหม่ภายหลัง</h1>", 503
     return send_from_directory(current_dir, "index.html")
 
-@app.route("/admin")
-def admin_page():
-    return send_from_directory(current_dir, "admin.html")
+@app.route("/api/info")
+def api_info(): return jsonify({"version":VERSION,"dev":DEV_NAME})
 
 # -------------------------------------------------------------
-# 📩 API สำหรับผู้เล่นส่งข้อมูลแจ้งปัญหามาหลังบ้าน
+# 🎮 PLAYER API (เฉพาะระบบฝั่งคนเล่นเกม)
 # -------------------------------------------------------------
-@app.route("/api/report/submit", methods=["POST"])
-def submit_report():
-    data = request.json
-    username = data.get("username", "ไม่ระบุชื่อ (ผู้เยี่ยมชม)")
-    report_type = data.get("type", "ทั่วไป")
-    message = data.get("message", "").strip()
-    
-    if not message:
-        return jsonify({"ok": False, "msg": "กรุณากรอกข้อความรายละเอียดปัญหาก่อนส่ง"}), 400
-        
-    report_doc = {
-        "username": username,
-        "type": report_type,
-        "message": message,
-        "ts": int(time.time()),
-        "status": "รอดำเนินการ"
-    }
-    db_reports.insert_one(report_doc)
-    return jsonify({"ok": True, "msg": "ส่งรายงานปัญหาไปให้แอดมินเรียบร้อยแล้ว!"})
-
-# -------------------------------------------------------------
-# 🛠️ API ฝั่งระบบแอดมินควบคุม
-# -------------------------------------------------------------
-@app.route("/api/admin/login", methods=["POST"])
-def admin_login():
-    data = request.json
-    if data.get("username") == ADMIN_USERNAME and data.get("password") == ADMIN_PASSWORD:
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "msg": "ชื่อหรือรหัสผ่านไม่ถูกต้อง"}), 401
-
-@app.route("/api/admin/users", methods=["POST"])
-def admin_users():
-    data = request.json
-    if data.get("username") != ADMIN_USERNAME or data.get("password") != ADMIN_PASSWORD:
-        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
-    users = load_users(); result = []
-    for uname, info in users.items():
-        rank = get_rank(info.get("exp", 0)); title = get_title(info.get("score", 0))
-        result.append({
-            "username": info.get("display_name", uname), "raw_user": uname, "pin": info["pin"], "score": info["score"],
-            "best_score": info["best_score"], "games_played": info["games_played"],
-            "exp": info.get("exp", 0), "rank": rank["emoji"]+" "+rank["name"], "banned": info.get("banned", False)
-        })
-    result.sort(key=lambda x: x["best_score"], reverse=True)
-    return jsonify({"ok": True, "users": result})
-
-@app.route("/api/admin/reports", methods=["POST"])
-def admin_get_reports():
-    data = request.json
-    if data.get("username") != ADMIN_USERNAME or data.get("password") != ADMIN_PASSWORD:
-        return jsonify({"ok": False}), 403
-    reports = list(db_reports.find().sort("ts", -1))
-    for r in reports:
-        if "_id" in r: r["_id"] = str(r["_id"])
-    return jsonify({"ok": True, "reports": reports})
-
-@app.route("/api/admin/delete-report", methods=["POST"])
-def admin_delete_report():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD:
-        return jsonify({"ok": False}), 403
-    from bson import ObjectId
-    db_reports.delete_one({"_id": ObjectId(data.get("report_id"))})
-    return jsonify({"ok": True})
-
-@app.route("/api/admin/manage-player", methods=["POST"])
-def admin_manage_player():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD:
-        return jsonify({"ok": False, "msg": "คุณไม่มีสิทธิ์"}), 403
-        
-    target_pin = data.get("target_pin", "").strip()
-    action = data.get("action")
-    value = data.get("value")
-    
-    users = load_users()
-    target_username = None
-    for uname, info in users.items():
-        if info.get("pin") == target_pin:
-            target_username = uname
-            break
-            
-    if not target_username: return jsonify({"ok": False, "msg": "ไม่พบ PIN นี้"}), 404
-    user_data = users[target_username]
-    
-    if action == "add_score":
-        user_data["score"] += int(value)
-        if user_data["score"] > user_data.get("best_score", 0): user_data["best_score"] = user_data["score"]
-    elif action == "reduce_score":
-        user_data["score"] = max(0, user_data["score"] - int(value))
-    elif action == "add_exp":
-        user_data["exp"] = user_data.get("exp", 0) + int(value)
-    elif action == "reduce_exp":
-        user_data["exp"] = max(0, user_data.get("exp", 0) - int(value))
-    elif action == "set_rank":
-        for rk in RANKS:
-            if rk["id"] == value:
-                user_data["rank_id"] = rk["id"]
-                user_data["exp"] = rk["exp_need"]
-                break
-    elif action == "ban":
-        user_data["banned"] = True
-    elif action == "unban":
-        user_data["banned"] = False
-    elif action == "clear_stats":
-        user_data["score"] = 0; user_data["best_score"] = 0; user_data["games_played"] = 0; user_data["exp"] = 0; user_data["rank_id"] = "wood"
-    elif action == "reset_pin":
-        user_data["pin"] = gen_pin()
-
-    save_users(users)
-    return jsonify({"ok": True, "msg": "จัดการข้อมูลสำเร็จ!"})
-
-@app.route("/api/admin/toggle-maintenance", methods=["POST"])
-def toggle_maintenance():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    sys = load_system()
-    sys["maintenance"] = not sys.get("maintenance", False)
-    save_system(sys)
-    return jsonify({"ok": True, "maintenance": sys["maintenance"]})
-
-@app.route("/api/admin/set-announcement", methods=["POST"])
-def set_announcement():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    sys = load_system()
-    sys["announcement"] = data.get("text", "")
-    save_system(sys)
-    return jsonify({"ok": True})
-
-@app.route("/api/admin/clear-chat", methods=["POST"])
-def clear_chat():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    db_chat.delete_many({})
-    return jsonify({"ok": True})
-
-@app.route("/api/admin/delete-player", methods=["POST"])
-def delete_player():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    db_users.delete_one({"username": data.get("raw_user")})
-    return jsonify({"ok": True})
-
-@app.route("/api/admin/reset-all-ranks", methods=["POST"])
-def reset_all_ranks():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    users = load_users()
-    for u in users:
-        users[u]["exp"] = 0
-        users[u]["rank_id"] = "wood"
-    save_users(users)
-    return jsonify({"ok": True})
-
-@app.route("/api/admin/set-global-theme", methods=["POST"])
-def set_global_theme():
-    data = request.json
-    if data.get("admin_user") != ADMIN_USERNAME or data.get("admin_pass") != ADMIN_PASSWORD: return jsonify({"ok":False}), 403
-    sys = load_system()
-    sys["theme"] = data.get("theme", "dark")
-    save_system(sys)
-    return jsonify({"ok": True})
-
-# -------------------------------------------------------------
-# 🎮 ระบบเกมหลักของผู้เล่น (สมัคร / ล็อกอิน / จัดการข้อมูล)
-# -------------------------------------------------------------
-@app.route("/api/register", methods=["POST"])
+@app.route("/api/register",methods=["POST"])
 def register():
     data = request.json
     username = data.get("username","").strip()
@@ -290,7 +171,7 @@ def register():
     session["pin"] = pin
     return jsonify({"ok":True,"pin":pin,"msg":"สร้างบัญชีสำเร็จ"})
 
-@app.route("/api/login", methods=["POST"])
+@app.route("/api/login",methods=["POST"])
 def login():
     data = request.json
     pin = data.get("pin","").strip()
@@ -308,13 +189,6 @@ def login():
 
 @app.route("/api/check-auth", methods=["GET"])
 def check_auth():
-    sys = load_system()
-    is_maintenance = sys.get("maintenance", False)
-    
-    # 🛠️ ตรวจสอบโหมดปิดปรับปรุงใน API ถ้าเปิดอยู่และไม่ใช่แอดมิน ให้ดีดออกทันที
-    if is_maintenance and session.get("username") != ADMIN_USERNAME:
-        return jsonify({"logged_in": False, "maintenance": True, "msg": "ระบบปิดปรับปรุง"}), 200
-
     if "username" in session and "pin" in session:
         users = load_users()
         username = session["username"]
@@ -323,29 +197,19 @@ def check_auth():
             if info.get("banned", False): return jsonify({"logged_in":False}), 200
             rank  = get_rank(info.get("exp",0))
             title = get_title(info.get("score",0))
-            return jsonify({
-                "logged_in": True,
-                "username": info.get("display_name", username),
-                "score": info["score"],
-                "best_score": info["best_score"],
-                "games_played": info["games_played"],
-                "exp": info.get("exp",0),
-                "rank": rank,
-                "title": title,
-                "maintenance": is_maintenance
-            })
-    return jsonify({"logged_in": False, "maintenance": is_maintenance}), 200
+            return jsonify({"logged_in":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":rank,"title":title})
+    return jsonify({"logged_in":False}),200
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
     session.clear()
     return jsonify({"ok":True,"msg":"ออกจากระบบเรียบร้อย"})
 
-@app.route("/api/question", methods=["POST"])
+@app.route("/api/question",methods=["POST"])
 def question():
     return jsonify(generate_question(request.json.get("difficulty","easy")))
 
-@app.route("/api/score", methods=["POST"])
+@app.route("/api/score",methods=["POST"])
 def submit_score():
     data = request.json; username = data.get("username"); new_score = data.get("score",0)
     users = load_users(); user_key = username
@@ -369,10 +233,10 @@ def leaderboard():
     board.sort(key=lambda x:x["best_score"],reverse=True)
     return jsonify(board[:20])
 
-@app.route("/api/chat", methods=["GET"])
-def chat_get(): return jsonify(db_chat.find().sort("ts", 1)[-80:])
+@app.route("/api/chat")
+def chat_get(): return jsonify(load_chat()[-80:])
 
-@app.route("/api/chat", methods=["POST"])
+@app.route("/api/chat",methods=["POST"])
 def chat_post():
     data = request.json; username=data.get("username","").strip(); text=data.get("text","").strip()
     if not username or not text: return jsonify({"ok":False}),400
@@ -384,10 +248,12 @@ def chat_post():
     if users.get(user_key, {}).get("banned", False): return jsonify({"ok":False,"msg":"คุณถูกแบนแชท"}),403
     rank_emoji  = "👑" if username==ADMIN_USERNAME else get_rank(users.get(user_key,{}).get("exp",0))["emoji"]
     title_emoji = "⚙️" if username==ADMIN_USERNAME else get_title(users.get(user_key,{}).get("score",0))["emoji"]
-    
-    msg_doc = {"user":username,"text":text,"rank_emoji":rank_emoji,"title_emoji":title_emoji,"ts":int(time.time())}
-    db_chat.insert_one(msg_doc)
-    return jsonify({"ok":True})
+    msgs=load_chat()
+    msgs.append({"user":username,"text":text,"rank_emoji":rank_emoji,"title_emoji":title_emoji,"ts":int(time.time())})
+    save_chat(msgs); return jsonify({"ok":True})
+
+# นำโมดูลระบบแอดมินมาลงทะเบียนเชื่อมต่อเข้าไฟล์หลักตรงนี้
+import admin_routes
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
