@@ -87,7 +87,7 @@ def admin_manage_player():
         user_data["exp"] = user_data.get("exp", 0) + int(value)
         user_data["rank_id"] = g["get_rank"](user_data["exp"])["id"]
     elif action == "reduce_exp":
-        user_data["exp"] = max(0, user_data["exp", 0] - int(value))
+        user_data["exp"] = max(0, user_data["exp"] - int(value))
         user_data["rank_id"] = g["get_rank"](user_data["exp"])["id"]
     elif action == "set_rank":
         for rk in g["RANKS"]:
@@ -107,15 +107,29 @@ def admin_manage_player():
     g["save_users"](users)
     return jsonify({"ok": True, "msg": "จัดการข้อมูลสำเร็จ!"})
 
+# ✨ ปรับปรุงระบบเปิด/ปิดปรับปรุงเซิร์ฟเวอร์ให้บันทึกสถานะได้เสถียร 100%
 @admin_bp.route("/api/admin/toggle-maintenance", methods=["POST"])
 def toggle_maintenance():
     g = get_globals()
     data = request.json
-    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
+    
+    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: 
+        return jsonify({"ok": False, "msg": "คุณไม่มีสิทธิ์"}), 403
+        
     sys = g["load_system"]()
-    sys["maintenance"] = not sys.get("maintenance", False)
+    current_status = sys.get("maintenance", False)
+    
+    # สลับสถานะเปิด-ปิด
+    sys["maintenance"] = not current_status
+    sys["type"] = "config"
+    
     g["save_system"](sys)
-    return jsonify({"ok": True, "maintenance": sys["maintenance"]})
+    
+    return jsonify({
+        "ok": True, 
+        "maintenance": sys["maintenance"], 
+        "msg": f"เปลี่ยนสถานะปิดปรับปรุงเป็น: {'เปิดใช้งาน' if sys['maintenance'] else 'ปิดใช้งาน'}"
+    })
 
 @admin_bp.route("/api/admin/set-announcement", methods=["POST"])
 def set_announcement():
@@ -124,6 +138,7 @@ def set_announcement():
     if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
     sys = g["load_system"]()
     sys["announcement"] = data.get("text", "")
+    sys["type"] = "config"
     g["save_system"](sys)
     return jsonify({"ok": True})
 
@@ -162,6 +177,7 @@ def set_global_theme():
     if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
     sys = g["load_system"]()
     sys["theme"] = data.get("theme", "dark")
+    sys["type"] = "config"
     g["save_system"](sys)
     return jsonify({"ok": True})
 
