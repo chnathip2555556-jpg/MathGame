@@ -3,220 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MathGame - ระบบจัดการแอดมิน</title>
+    <title>MathGame - คอนโซลควบคุมระดับสูงและระบบแจ้งปัญหา</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #121214; color: #e1e1e6; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 40px auto; background: #202024; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        body { font-family: 'Kanit', sans-serif; background-color: #121214; color: #e1e1e6; margin: 0; padding: 15px; }
+        .container { max-width: 800px; margin: 20px auto; background: #202024; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         h2, h3 { text-align: center; color: #04d361; margin-top: 0; }
-        .form-group { margin-bottom: 15px; }
+        .form-group { margin-bottom: 12px; }
         label { display: block; margin-bottom: 5px; font-weight: 600; color: #a8a8b3; }
-        input, select, button { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #29292e; background: #121214; color: #fff; font-size: 16px; box-sizing: border-box; }
-        input:focus, select:focus { border-color: #04d361; outline: none; }
-        button { background: #04d361; color: #121214; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        input, select, button, textarea { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #29292e; background: #121214; color: #fff; font-size: 15px; box-sizing: border-box; }
+        button { background: #04d361; color: #121214; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; margin-top: 8px; }
         button:hover { background: #06b956; }
-        .btn-load { background: #482380; color: #fff; }
-        .btn-load:hover { background: #572a99; }
-        .user-list { margin-top: 25px; max-height: 250px; overflow-y: auto; background: #121214; padding: 10px; border-radius: 6px; }
-        .user-card { padding: 10px; border-bottom: 1px solid #29292e; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-        .user-card:last-child { border-bottom: none; }
-        .pin-badge { background: #ff4757; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-family: monospace; }
-        .success-text { color: #04d361; text-align: center; font-weight: bold; margin-top: 10px; }
-        .error-text { color: #ff4757; text-align: center; font-weight: bold; margin-top: 10px; }
-        
-        /* สไตล์หน้าต่างล็อกอิน */
+        .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .btn-purple { background: #482380; color: #fff; } .btn-purple:hover { background: #572a99; }
+        .btn-danger { background: #ff4757; color: #fff; } .btn-danger:hover { background: #ff6b81; }
+        .user-list, .report-list { margin-top: 15px; max-height: 250px; overflow-y: auto; background: #121214; padding: 10px; border-radius: 6px; }
+        .user-card, .report-card { padding: 10px; border-bottom: 1px solid #29292e; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .report-card { flex-direction: column; align-items: flex-start; gap: 5px; }
+        .pin-badge { background: #ff4757; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .type-badge { background: #f1c40f; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .guide-box { background: #1a1a1e; border-left: 4px solid #04d361; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
         .login-box { max-width: 400px; margin: 80px auto; background: #202024; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border-top: 4px solid #04d361; }
     </style>
 </head>
 <body>
 
 <div id="loginSection" class="login-box">
-    <h2>🔐 Admin Login</h2>
-    <p style="text-align: center; color: #a8a8b3; font-size: 14px; margin-top: -5px;">กรุณาเข้าสู่ระบบผู้ดูแลระบบ</p>
+    <h2>🔐 Admin Access Panel</h2>
     <div class="form-group">
-        <label>ชื่อผู้ใช้ (Username)</label>
-        <input type="text" id="adminUser" placeholder="กรอกชื่อแอดมิน">
+        <label>ชื่อแอดมิน</label>
+        <input type="text" id="adminUser" placeholder="Username">
     </div>
     <div class="form-group">
-        <label>รหัสผ่าน (Password)</label>
-        <input type="password" id="adminPass" placeholder="กรอกรหัสผ่านแอดมิน">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="adminPass" placeholder="Password">
     </div>
-    <button onclick="checkAdminLogin()">🔓 เข้าสู่ระบบแอดมิน</button>
-    <div id="loginMessage"></div>
+    <button onclick="checkAdminLogin()">🔓 เข้าสู่ระบบหลังบ้าน</button>
+    <div id="loginMessage" style="text-align:center; margin-top:10px;"></div>
 </div>
 
 <div id="adminPanelSection" class="container" style="display: none;">
-    <h2>🛠️ MathGame Admin Panel</h2>
-    <p style="text-align: center; color: #04d361; font-size: 14px; margin-top: -5px;">ยินดีต้อนรับคุณแอดมิน สิทธิ์การเข้าถึงสมบูรณ์</p>
+    <h2>📊 คอนโซลควบคุมระบบหลังบ้านแบบรวมศูนย์</h2>
     
-    <button class="btn-load" onclick="loadPlayers()">👁️ ดึงรายชื่อผู้เล่น & ดู PIN ทั้งหมด</button>
+    <div class="guide-box">
+        <h3 style="text-align:left; color:#04d361; margin-bottom:8px;">📖 คู่มือการสมัครสมาชิก / การเข้าสู่ระบบ / และการเล่นเกม</h3>
+        <b>✨ ขั้นตอนการสมัครสมาชิก:</b><br>
+        1. เปิดหน้าแรกของเว็บเกม กดเลือกแท็บ <b>"สมัครสมาชิก"</b> ด้านบน<br>
+        2. ตั้งชื่อผู้ใช้ (Username) และ รหัสผ่าน (Password) ตามต้องการ แล้วกดปุ่มสีม่วง<br>
+        3. ระบบจะทำการสุ่มรหัส <b>PIN ตัวเลข 6 หลัก</b> แสดงขึ้นมาบนหน้าจอ <span style="color:#ff4757; font-weight:bold;">*เน้นย้ำให้ผู้เล่นบันทึกภาพหน้าจอหรือจดบันทึก PIN นี้ไว้*</span><br><br>
+        
+        <b>🔑 ขั้นตอนการเข้าบัญชีเล่นเกม:</b><br>
+        1. สลับไปกดแท็บ <b>"เข้าสู่ระบบ"</b> บนหน้าเว็บเกมหลัก<br>
+        2. ใช้รหัส <b>PIN 6 หลัก</b> ที่ได้จากการสมัครกรอกลงไปในช่อง แล้วกดตกลงเพื่อดึงข้อมูลเดิมกลับมาเล่นต่อได้ทันที<br><br>
+        
+        <b>🎮 รูปแบบระบบการเล่น:</b><br>
+        ผู้เล่นต้องแข่งกับเวลาตอบสูตรเลขคณิตศาสตร์ให้ถูกต้อง ยิ่งสะสม EXP สูงขึ้น ระบบจะเพิ่มความยากของโจทย์คำนวณและสับเปลี่ยนแรงค์บนตารางอันดับแบบเรียลไทม์
+    </div>
+
+    <div style="background: #2b2b32; padding: 15px; border-radius: 8px; border: 1px solid #3e3e4a; margin-bottom: 20px;">
+        <h3 style="color: #ff4757; margin-bottom: 10px; text-align: left;">📥 กล่องรับเรื่องแจ้งปัญหา (ลืม PIN / แจ้งบัค)</h3>
+        <button class="btn-purple" onclick="loadReports()">🔄 รีเฟรชดึงข้อมูลตั๋วแจ้งเรื่องล่าสุด</button>
+        <div id="reportList" class="report-list">ยังไม่มีรายงานส่งเข้ามา หรือกดปุ่มรีเฟรชเพื่อโหลดข้อมูล</div>
+    </div>
+
+    <button class="btn-purple" onclick="loadPlayers()">👁️ ส่องข้อมูลรายชื่อผู้เล่น & ดู PIN ทั้งหมดในระบบ</button>
     <div id="userList" class="user-list" style="display:none;"></div>
 
-    <hr style="border-color: #29292e; margin: 25px 0;">
+    <hr style="border-color: #29292e; margin: 20px 0;">
 
-    <h3>⚙️ จัดการสเตตัสผู้เล่นด้วย PIN</h3>
-    
+    <h3>👤 เมนูจัดการผู้เล่นผ่านรหัส PIN</h3>
     <div class="form-group">
-        <label>PIN ของผู้เล่นเป้าหมาย</label>
-        <input type="text" id="targetPin" placeholder="เช่น 123456">
+        <label>กรอกรหัส PIN ของผู้เล่นที่ต้องการปรับเปลี่ยน</label>
+        <input type="text" id="targetPin" placeholder="เลข PIN 6 หลัก">
     </div>
-    
     <div class="form-group">
-        <label>สิ่งที่ต้องการทำ (Action)</label>
+        <label>คำสั่งจัดการระบบ</label>
         <select id="action" onchange="toggleValueInput()">
-            <option value="add_score">➕ เพิ่มแต้ม (Score)</option>
-            <option value="reduce_score">➖ ลดแต้ม (Score)</option>
-            <option value="add_exp">⭐ เพิ่ม EXP</option>
-            <option value="reduce_exp">📉 ลด EXP</option>
-            <option value="set_rank">👑 เปลี่ยนระดับแรงค์ตรงๆ</option>
+            <option value="add_score">➕ เพิ่มคะแนนแต้มสะสม</option>
+            <option value="reduce_score">➖ ลดคะแนนแต้มสะสม</option>
+            <option value="add_exp">⭐ เพิ่มค่าประสบการณ์ (EXP)</option>
+            <option value="reduce_exp">📉 ลดค่าประสบการณ์ (EXP)</option>
+            <option value="set_rank">👑 สั่งปรับแรงค์ตรงๆ</option>
+            <option value="ban">🚫 สั่งแบนไอดีผู้เล่น</option>
+            <option value="unban">✅ ปลดแบนไอดีผู้เล่น</option>
+            <option value="clear_stats">🧹 ล้างข้อมูลสถิติตัวละครเป็น 0</option>
+            <option value="reset_pin">🎲 สุ่มสลับเปลี่ยนรหัส PIN ใหม่</option>
         </select>
     </div>
     
     <div class="form-group" id="valueGroup">
-        <label id="valueLabel">จำนวน (ตัวเลข)</label>
-        <input type="number" id="actionValue" placeholder="ระบุจำนวนตัวเลข">
+        <label id="valueLabel">จำนวนตัวเลข</label>
+        <input type="number" id="actionValue" placeholder="ระบุตัวเลข">
         <select id="rankValue" style="display:none;">
-            <option value="wood">🪵 แรงค์ไม้</option>
-            <option value="iron">🗿 แรงค์เหล็ก</option>
-            <option value="silver">⚙️ แรงค์เงิน</option>
-            <option value="gold">🪙 แรงค์ทอง</option>
-            <option value="diamond">💎 แรงค์เพชร</option>
-            <option value="purple">♾️ แรงค์ม่วง</option>
-            <option value="bigbrain">🧠 แรงค์สมองใหญ่</option>
-            <option value="king">👑 แรงค์ KING</option>
+            <option value="wood">🪵 แรงค์ไม้</option><option value="iron">🗿 แรงค์เหล็ก</option>
+            <option value="silver">⚙️ แรงค์เงิน</option><option value="gold">🪙 แรงค์ทอง</option>
+            <option value="diamond">💎 แรงค์เพชร</option><option value="purple">♾️ แรงค์ม่วง</option>
+            <option value="bigbrain">🧠 แรงค์สมองใหญ่</option><option value="king">👑 แรงค์ KING</option>
         </select>
     </div>
+    <button onclick="submitManagement()">⚡ ยืนยันการรันคำสั่งสำเร็จรูป</button>
 
-    <button onclick="submitManagement()">⚡ ยืนยันการปรับเปลี่ยน</button>
-    <button style="background: #29292e; color: #a8a8b3; margin-top: 15px;" onclick="logoutAdmin()">🚪 ออกจากระบบแอดมิน</button>
-    <div id="resultMessage"></div>
+    <hr style="border-color: #29292e; margin: 20px 0;">
+
+    <h3>🌐 เมนูแอดมินสิทธิ์เซิร์ฟเวอร์หลัก</h3>
+    <div class="grid-buttons">
+        <button class="btn-danger" onclick="toggleMaintenance()">🛠️ เปิด/ปิด โหมดปรับปรุงเซิร์ฟเวอร์</button>
+        <button class="btn-danger" onclick="clearAllChat()">💬 ล้างกระดานห้องแชททั้งหมด</button>
+        <button class="btn-purple" onclick="resetAllRanksGlobal()">🔄 ล้างแรงค์ทุกคนเป็น 0 (รีซีซั่น)</button>
+        <button style="background:#f1c40f; color:#000;" onclick="changeGlobalTheme()">🎨 เปลี่ยนธีมหลักเว็บเซิร์ฟเวอร์</button>
+    </div>
+
+    <div class="form-group" style="margin-top:15px;">
+        <label>เขียนคำประกาศประจำวันบนหน้าแรก</label>
+        <textarea id="announceText" rows="2" placeholder="ข้อความประกาศ..."></textarea>
+        <button class="btn-purple" onclick="setAnnounce()">📢 อัปเดตคำประกาศหน้าเว็บเกม</button>
+    </div>
+
+    <button style="background: #29292e; color: #a8a8b3; margin-top: 20px;" onclick="location.reload()">🚪 ออกจากระบบ</button>
+    <div id="resultMessage" style="text-align:center; margin-top:15px; font-weight:bold;"></div>
 </div>
 
 <script>
-    // ตรวจสอบการล็อกอินกับ API หลังบ้าน
     async function checkAdminLogin() {
-        const username = document.getElementById("adminUser").value;
-        const password = document.getElementById("adminPass").value;
-        const loginMsg = document.getElementById("loginMessage");
-
-        loginMsg.innerHTML = "กำลังตรวจสอบสิทธิ์...";
-
+        const u = document.getElementById("adminUser").value; const p = document.getElementById("adminPass").value;
+        const msg = document.getElementById("loginMessage");
         try {
-            const res = await fetch("/api/admin/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-
-            if (data.ok) {
-                // ถ้าผ่าน ให้ซ่อนหน้าล็อกอินแล้วโชว์หน้าแอดมินพาเนล
-                document.getElementById("loginSection").style.display = "none";
+            const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username:u, password:p }) });
+            if ((await res.json()).ok) { 
+                document.getElementById("loginSection").style.display = "none"; 
                 document.getElementById("adminPanelSection").style.display = "block";
-                loginMsg.innerHTML = "";
-            } else {
-                loginMsg.innerHTML = `<p class="error-text">❌ ${data.msg}</p>`;
-            }
-        } catch (e) {
-            loginMsg.innerHTML = "<p class='error-text'>❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</p>";
-        }
-    }
-
-    function logoutAdmin() {
-        // เคลียร์ค่าและกลับไปหน้าล็อกอิน
-        document.getElementById("adminPass").value = "";
-        document.getElementById("loginSection").style.display = "block";
-        document.getElementById("adminPanelSection").style.display = "none";
-        document.getElementById("userList").style.display = "none";
-        document.getElementById("resultMessage").innerHTML = "";
+                loadReports(); 
+            } else { msg.innerHTML = "<span class='error-text'>รหัสแอดมินไม่ถูกต้อง</span>"; }
+        } catch(e) { msg.innerHTML = "เชื่อมต่อล้มเหลว ตรวจสอบอินเทอร์เน็ตหลังบ้าน"; }
     }
 
     function toggleValueInput() {
-        const action = document.getElementById("action").value;
-        const actionValue = document.getElementById("actionValue");
-        const rankValue = document.getElementById("rankValue");
-        const valueLabel = document.getElementById("valueLabel");
+        const act = document.getElementById("action").value;
+        document.getElementById("actionValue").style.display = (act==="set_rank" || act==="ban" || act==="unban" || act==="clear_stats" || act==="reset_pin") ? "none" : "block";
+        document.getElementById("rankValue").style.display = (act==="set_rank") ? "block" : "none";
+    }
 
-        if (action === "set_rank") {
-            actionValue.style.display = "none";
-            rankValue.style.display = "block";
-            valueLabel.innerText = "เลือกระดับแรงค์ที่ต้องการ";
-        } else {
-            actionValue.style.display = "block";
-            rankValue.style.display = "none";
-            valueLabel.innerText = "จำนวน (ตัวเลข)";
-        }
+    async function loadReports() {
+        const u = document.getElementById("adminUser").value; const p = document.getElementById("adminPass").value;
+        const box = document.getElementById("reportList"); box.innerHTML = "กำลังดึงข้อมูลปัญหา...";
+        try {
+            const res = await fetch("/api/admin/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username:u, password:p }) });
+            const data = await res.json();
+            if(!data.ok || data.reports.length === 0) { box.innerHTML = "🎉 สบายใจได้! ยังไม่มีรายงานแจ้งปัญหาค้างในระบบ"; return; }
+            box.innerHTML = "";
+            data.reports.forEach(r => {
+                const date = new Date(r.ts * 1000).toLocaleString('th-TH');
+                box.innerHTML += `
+                    <div class="report-card">
+                        <div><span class="type-badge">${r.type}</span> <b>ผู้ส่ง:</b> ${r.username} | <small>${date}</small></div>
+                        <div style="background:#202024; padding:8px; width:100%; border-radius:4px; margin-top:5px;">${r.message}</div>
+                        <button class="btn-danger" style="width:auto; padding:3px 10px; font-size:12px; margin-top:5px;" onclick="deleteReport('${r._id}')">🗑️ เคลียร์ปัญหาเสร็จแล้ว (ลบออก)</button>
+                    </div>`;
+            });
+        } catch(e) { box.innerHTML = "ไม่สามารถเชื่อมต่อดึงประวัติแจ้งปัญหาได้"; }
+    }
+
+    async function deleteReport(id) {
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        await fetch("/api/admin/delete-report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass, report_id: id }) });
+        loadReports();
     }
 
     async function loadPlayers() {
-        const adminUser = document.getElementById("adminUser").value;
-        const adminPass = document.getElementById("adminPass").value;
-        const userListDiv = document.getElementById("userList");
-        
-        userListDiv.style.display = "block";
-        userListDiv.innerHTML = "กำลังดึงข้อมูล...";
-
+        const u = document.getElementById("adminUser").value; const p = document.getElementById("adminPass").value;
+        const list = document.getElementById("userList"); list.style.display = "block"; list.innerHTML = "กำลังโหลด...";
         try {
-            const res = await fetch("/api/admin/users", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: adminUser, password: adminPass })
-            });
+            const res = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username:u, password:p }) });
             const data = await res.json();
-            
-            if (!data.ok) {
-                userListDiv.innerHTML = `<span class='error-text'>${data.msg}</span>`;
-                return;
-            }
-
-            userListDiv.innerHTML = "";
-            data.users.forEach(u => {
-                userListDiv.innerHTML += `
+            list.innerHTML = "";
+            data.users.forEach(user => {
+                list.innerHTML += `
                     <div class="user-card">
-                        <div><strong>${u.username}</strong> (${u.rank})</div>
-                        <div>PIN: <span class="pin-badge">${u.pin}</span></div>
-                    </div>
-                `;
+                        <div><b>${user.username}</b> (${user.rank}) | แต้ม: ${user.score} ${user.banned ? '<span class="ban-badge">ถูกแบน</span>':''}</div>
+                        <div>PIN: <span class="pin-badge">${user.pin}</span> <button class="btn-danger" style="width:auto; padding:2px 5px; margin:0;" onclick="deletePlayerRaw('${user.raw_user}')">ลบไอดี</button></div>
+                    </div>`;
             });
-        } catch (e) {
-            userListDiv.innerHTML = "<span class='error-text'>ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</span>";
-        }
+        } catch(e) { list.innerHTML = "โหลดล้มเหลว"; }
     }
 
     async function submitManagement() {
-        const admin_user = document.getElementById("adminUser").value;
-        const admin_pass = document.getElementById("adminPass").value;
-        const target_pin = document.getElementById("targetPin").value;
-        const action = document.getElementById("action").value;
-        
-        let value;
-        if (action === "set_rank") {
-            value = document.getElementById("rankValue").value;
-        } else {
-            value = document.getElementById("actionValue").value;
-        }
-
-        const msgDiv = document.getElementById("resultMessage");
-        msgDiv.innerHTML = "กำลังส่งข้อมูล...";
-
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        const target_pin = document.getElementById("targetPin").value; const action = document.getElementById("action").value;
+        let value = action === "set_rank" ? document.getElementById("rankValue").value : document.getElementById("actionValue").value;
+        const msg = document.getElementById("resultMessage");
         try {
-            const res = await fetch("/api/admin/manage-player", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ admin_user, admin_pass, target_pin, action, value })
-            });
-            const data = await res.json();
+            const res = await fetch("/api/admin/manage-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass, target_pin, action, value }) });
+            const d = await res.json();
+            msg.innerHTML = d.ok ? `<span style='color:#04d361;'>${d.msg}</span>` : `<span style='color:#ff4757;'>${d.msg}</span>`;
+            loadPlayers();
+        } catch(e) { msg.innerHTML = "เกิดข้อผิดพลาด"; }
+    }
 
-            if (data.ok) {
-                msgDiv.innerHTML = `<p class="success-text">🎉 ${data.msg}</p>`;
-                loadPlayers(); 
-            } else {
-                msgDiv.innerHTML = `<p class="error-text">❌ ${data.msg}</p>`;
-            }
-        } catch (e) {
-            msgDiv.innerHTML = `<p class="error-text">❌ เกิดข้อผิดพลาดในการส่งข้อมูล</p>`;
-        }
+    async function toggleMaintenance() {
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        const res = await fetch("/api/admin/toggle-maintenance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass }) });
+        const d = await res.json(); alert(d.maintenance ? "เปิดโหมดปรับปรุงระบบแล้ว (ผู้เล่นจะเข้าไม่ได้)" : "ปิดโหมดปรับปรุงระบบเรียบร้อย");
+    }
+
+    async function clearAllChat() {
+        if(!confirm("ต้องการลบแชททั้งหมดใช่ไหม?")) return;
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        await fetch("/api/admin/clear-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass }) });
+        alert("ล้างแชทเรียบร้อยแล้ว!");
+    }
+
+    async function resetAllRanksGlobal() {
+        if(!confirm("ต้องการรีเซ็ตระดับแรงค์ของทุกคนเป็น 0 ใช่ไหม?")) return;
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        await fetch("/api/admin/reset-all-ranks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass }) });
+        alert("รีเซ็ตซีซั่นเรียบร้อย!"); loadPlayers();
+    }
+
+    async function deletePlayerRaw(raw_user) {
+        if(!confirm("ต้องการลบผู้เล่นนี้ถาวรใช่ไหม?")) return;
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        await fetch("/api/admin/delete-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass, raw_user }) });
+        loadPlayers();
+    }
+
+    async function setAnnounce() {
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        const text = document.getElementById("announceText").value;
+        await fetch("/api/admin/set-announcement", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass, text }) });
+        alert("อัปเดตประกาศสำเร็จ!");
+    }
+
+    async function changeGlobalTheme() {
+        const theme = prompt("เลือกธีมเว็บ: dark, ocean, neon, sunset, forest, royal");
+        if(!theme) return;
+        const admin_user = document.getElementById("adminUser").value; const admin_pass = document.getElementById("adminPass").value;
+        await fetch("/api/admin/set-global-theme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ admin_user, admin_pass, theme }) });
+        alert("เปลี่ยนธีมสำเร็จ!");
     }
 </script>
 </body>
 </html>
+
