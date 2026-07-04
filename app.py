@@ -254,10 +254,12 @@ def chat_post():
     save_chat(msgs); return jsonify({"ok":True})
 
 # -------------------------------------------------------------
-# ⚙️ แชร์ตัวแปรและฟังก์ชันให้ระบบแอดมินนำไปใช้งานผ่าน Blueprint อย่างปลอดภัย
+# ⚙️ แชร์ตัวแปรและคอลเลกชันฐานข้อมูลให้ระบบแอดมินนำไปใช้งานผ่าน Blueprint
 # -------------------------------------------------------------
 app.config.update(
-    db_client=db,
+    db_users=db_users,
+    db_system=db_system,
+    db_chat=db_chat,
     ADMIN_USERNAME=ADMIN_USERNAME,
     ADMIN_PASSWORD=ADMIN_PASSWORD,
     RANKS=RANKS,
@@ -277,5 +279,6 @@ from admin_routes import admin_bp
 app.register_blueprint(admin_bp)
 
 if __name__=="__main__":
+    import os
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
