@@ -253,7 +253,8 @@ def chat_post():
     save_chat(msgs); return jsonify({"ok":True})
 
 # นำโมดูลระบบแอดมินมาลงทะเบียนเชื่อมต่อเข้าไฟล์หลักตรงนี้
-import admin_routes
+from admin_routes import admin_bp
+app.register_blueprint(admin_bp)
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
