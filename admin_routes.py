@@ -1,17 +1,13 @@
 from flask import Blueprint, request, jsonify, send_from_directory, current_app
 import time
 
-# สร้าง Blueprint สำหรับระบบแอดมิน
 admin_bp = Blueprint('admin_routes', __name__)
 
-# ฟังก์ชันดึงตัวแปรส่วนกลางจากฐานข้อมูลและตัวแปรหลักของระบบผ่าน current_app
 def get_globals():
-    # เข้าถึงฐานข้อมูลและตัวแปรที่ผูกไว้กับตัวแปร app หลัก
-    db = current_app.config.get('db_client')
     return {
-        "db_users": db["users"] if db else None,
-        "db_system": db["system"] if db else None,
-        "db_chat": db["chat"] if db else None,
+        "db_users": current_app.config.get('db_users'),
+        "db_system": current_app.config.get('db_system'),
+        "db_chat": current_app.config.get('db_chat'),
         "ADMIN_USERNAME": current_app.config.get('ADMIN_USERNAME'),
         "ADMIN_PASSWORD": current_app.config.get('ADMIN_PASSWORD'),
         "RANKS": current_app.config.get('RANKS'),
@@ -31,7 +27,6 @@ def admin_page():
     g = get_globals()
     return send_from_directory(g["current_dir"], "admin.html")
 
-# 🌟 ระบบ 1: ล็อกอินแอดมิน
 @admin_bp.route("/api/admin/login", methods=["POST"])
 def admin_login():
     g = get_globals()
@@ -40,7 +35,6 @@ def admin_login():
         return jsonify({"ok": True})
     return jsonify({"ok": False, "msg": "ชื่อหรือรหัสผ่านไม่ถูกต้อง"}), 401
 
-# 🌟 ระบบ 2: ดึงรายชื่อและสถิติผู้เล่นทั้งหมด
 @admin_bp.route("/api/admin/users", methods=["POST"])
 def admin_users():
     g = get_globals()
@@ -63,7 +57,6 @@ def admin_users():
     result.sort(key=lambda x: x["best_score"], reverse=True)
     return jsonify({"ok": True, "users": result})
 
-# 🌟 ระบบ 3 ถึง 7: จัดการผู้เล่นรายบุคคล
 @admin_bp.route("/api/admin/manage-player", methods=["POST"])
 def admin_manage_player():
     g = get_globals()
@@ -114,7 +107,6 @@ def admin_manage_player():
     g["save_users"](users)
     return jsonify({"ok": True, "msg": "จัดการข้อมูลสำเร็จ!"})
 
-# 🌟 ระบบ 8: ปิด/เปิด ปรับปรุงเซิร์ฟเวอร์
 @admin_bp.route("/api/admin/toggle-maintenance", methods=["POST"])
 def toggle_maintenance():
     g = get_globals()
@@ -125,7 +117,6 @@ def toggle_maintenance():
     g["save_system"](sys)
     return jsonify({"ok": True, "maintenance": sys["maintenance"]})
 
-# 🌟 ระบบ 9: แก้ไขคำประกาศประจำวันบนหน้าเว็บ
 @admin_bp.route("/api/admin/set-announcement", methods=["POST"])
 def set_announcement():
     g = get_globals()
@@ -136,7 +127,6 @@ def set_announcement():
     g["save_system"](sys)
     return jsonify({"ok": True})
 
-# 🌟 ระบบ 10: ลบแชททั้งหมดในฐานข้อมูล
 @admin_bp.route("/api/admin/clear-chat", methods=["POST"])
 def clear_chat():
     g = get_globals()
@@ -145,7 +135,6 @@ def clear_chat():
     g["save_chat"]([])
     return jsonify({"ok": True})
 
-# 🌟 ระบบ 11: ลบผู้เล่นถาวรออกจากฐานข้อมูล
 @admin_bp.route("/api/admin/delete-player", methods=["POST"])
 def delete_player():
     g = get_globals()
@@ -154,7 +143,6 @@ def delete_player():
     g["db_users"].delete_one({"username": data.get("raw_user")})
     return jsonify({"ok": True})
 
-# 🌟 ระบบ 12: รีเซ็ตแรงค์ของทุกคนเป็น 0 พร้อมกัน
 @admin_bp.route("/api/admin/reset-all-ranks", methods=["POST"])
 def reset_all_ranks():
     g = get_globals()
@@ -167,7 +155,6 @@ def reset_all_ranks():
     g["save_users"](users)
     return jsonify({"ok": True})
 
-# 🌟 ระบบ 13: เปลี่ยนธีมหน้าเว็บหลักแบบ Global
 @admin_bp.route("/api/admin/set-global-theme", methods=["POST"])
 def set_global_theme():
     g = get_globals()
@@ -178,7 +165,6 @@ def set_global_theme():
     g["save_system"](sys)
     return jsonify({"ok": True})
 
-# 🌟 ระบบ 14: สุ่มแจก EXP/Score ให้ผู้เล่นทุกคนในเซิร์ฟเวอร์พร้อมกัน
 @admin_bp.route("/api/admin/giveaway-all", methods=["POST"])
 def admin_giveaway_all():
     g = get_globals()
@@ -200,7 +186,6 @@ def admin_giveaway_all():
     g["save_users"](users)
     return jsonify({"ok": True, "msg": f"แจกรางวัล {give_type} จำนวน {amount} ให้ผู้เล่นทุกคนแล้ว!"})
 
-# 🌟 ระบบ 15: สรุปสถิติเซิร์ฟเวอร์แบบภาพรวม
 @admin_bp.route("/api/admin/server-stats", methods=["POST"])
 def admin_server_stats():
     g = get_globals()
@@ -222,7 +207,6 @@ def admin_server_stats():
         "db_chat_count": g["db_chat"].count_documents({})
     })
 
-# 🌟 ระบบ 16: สั่งแอดมินส่งข้อความแชทประกาศสีทอง
 @admin_bp.route("/api/admin/send-system-chat", methods=["POST"])
 def admin_send_system_chat():
     g = get_globals()
@@ -241,7 +225,6 @@ def admin_send_system_chat():
     g["db_chat"].insert_one(msg_doc)
     return jsonify({"ok": True, "msg": "ส่งข้อความประกาศเข้าแชทเรียบร้อย!"})
 
-# 🌟 ระบบ 17: สั่งลบข้อความในแชทระบุเป็น "รายข้อความ"
 @admin_bp.route("/api/admin/delete-chat-msg", methods=["POST"])
 def admin_delete_chat_msg():
     g = get_globals()
@@ -252,7 +235,6 @@ def admin_delete_chat_msg():
     g["db_chat"].delete_one({"ts": int(msg_ts)})
     return jsonify({"ok": True, "msg": "ลบข้อความแชทดังกล่าวแล้ว"})
 
-# 🌟 ระบบ 18: ระบบล็อกผลคำตอบ หรือแกล้งผู้เล่น
 @admin_bp.route("/api/admin/set-player-luck", methods=["POST"])
 def admin_set_player_luck():
     g = get_globals()
