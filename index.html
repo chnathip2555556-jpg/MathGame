@@ -147,14 +147,14 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 
 /* ── Form ── */
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
-.field input,.field select{
+.field input,.field select,.field textarea{
   width:100%;padding:12px 15px;
   background:var(--surface);border:1px solid var(--border);
   border-radius:11px;color:var(--text);font-family:var(--font);font-size:.92rem;
   outline:none;transition:border .2s,box-shadow .2s;
 }
-.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
-.field input::placeholder{color:var(--muted);}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted);}
 
 /* ── Buttons ── */
 .btn{width:100%;padding:13px;border-radius:13px;border:none;font-family:var(--font);font-size:.92rem;font-weight:700;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
@@ -229,6 +229,12 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 
 .diff-btn.sel{border-color:var(--accent);background:rgba(99,102,241,.12);box-shadow:0 0 12px var(--glow);}
 .diff-btn.extreme{border-color:rgba(248,113,113,.4);}
 .diff-btn.extreme.sel{border-color:var(--red);background:rgba(248,113,113,.1);box-shadow:0 0 12px rgba(248,113,113,.3);}
+
+/* ── Info Container Box ── */
+.info-box {
+  background: rgba(255,255,255,.02); border-left: 3px solid var(--accent);
+  padding: 12px; border-radius: 8px; font-size: .78rem; line-height: 1.5; color: var(--text); margin-top: 14px;
+}
 
 /* ── Stats card ── */
 .stats-card{
@@ -436,6 +442,7 @@ footer .hl{background:var(--gradient);-webkit-background-clip:text;-webkit-text-
   </div>
   <div class="nav-btns">
     <button onclick="showPage('home')" id="nav-home">หน้าหลัก</button>
+    <button onclick="showPage('report')" id="nav-report">🚨 แจ้งปัญหา</button>
     <button onclick="showPage('board')" id="nav-board">🏆 อันดับ</button>
     <button onclick="openChat()" id="nav-chat">💬 แชท</button>
     <button onclick="showPage('admin-login')" id="nav-admin">⚙ Admin</button>
@@ -491,6 +498,40 @@ footer .hl{background:var(--gradient);-webkit-background-clip:text;-webkit-text-
       <button class="btn btn-primary" onclick="switchTab('login')">ไป Login →</button>
     </div>
   </div>
+</div>
+
+<div class="card screen" id="page-report">
+  <div class="card-title" style="color: var(--red);">🚨 แจ้งปัญหาในเกม</div>
+  <div class="card-sub">ลืมรหัส PIN, เจอบัค หรือต้องการติดต่อแอดมิน เขียนส่งเรื่องได้ที่นี่ครับ</div>
+  
+  <div class="field">
+    <label>ชื่อผู้เล่น / ไอดีของคุณ</label>
+    <input type="text" id="report-name" placeholder="ระบุเพื่อให้แอดมินตรวจสอบง่ายขึ้น หรือไม่ระบุก็ได้"/>
+  </div>
+  
+  <div class="field">
+    <label>หมวดหมู่ของปัญหา</label>
+    <select id="report-category">
+      <option value="🔑 ลืมรหัสผ่าน / ลืมรหัส PIN เข้าไอดี">🔑 ลืมรหัสผ่าน / ลืมรหัส PIN เข้าไอดี</option>
+      <option value="🐛 พบเจอบัคหรือข้อผิดพลาดในเกม">🐛 พบเจอบัคหรือข้อผิดพลาดในเกม</option>
+      <option value="💬 แจ้งเบาะแสหรือรายงานผู้เล่นที่ทำผิดกฎ">💬 แจ้งเบาะแสหรือรายงานผู้เล่นที่ทำผิดกฎ</option>
+      <option value="❓ สอบถามข้อมูลหรือแจ้งเรื่องอื่นๆ">❓ สอบถามข้อมูลหรือแจ้งเรื่องอื่นๆ</option>
+    </select>
+  </div>
+  
+  <div class="field">
+    <label>รายละเอียดของปัญหา</label>
+    <textarea id="report-message" rows="4" placeholder="กรุณาเขียนรายละเอียดให้ชัดเจนเพื่อให้แอดมินแก้ไขได้ตรงจุด เช่น: ผมไอดีชื่อ player1 ลืมรหัส PIN ครับ..."></textarea>
+  </div>
+  
+  <button class="btn btn-primary" style="background: linear-gradient(135deg,#ef4444,#f97316); box-shadow: 0 4px 20px rgba(239,68,68,.3);" onclick="doSendReport()">📨 ส่งคำร้องหาแอดมิน</button>
+  <div id="report-msg"></div>
+  
+  <div class="info-box" style="border-left-color: var(--red);">
+    <b>💡 คำแนะนำ:</b> หากลืมรหัส PIN กรุณาระบุ <b>ชื่อบัญชี (Username)</b> เดิมของคุณในช่องรายละเอียดให้ถูกต้อง เพื่อให้แอดมินสามารถค้นหาและรีเซ็ตเลข PIN ใหม่ให้ได้อย่างรวดเร็วครับ
+  </div>
+  
+  <button class="btn btn-ghost" style="margin-top:14px" onclick="goBack()">← กลับ</button>
 </div>
 
 <div class="card screen" id="page-menu">
@@ -864,6 +905,7 @@ function showPage(id){
   document.getElementById("page-"+id).classList.add("active");
   document.querySelectorAll(".nav-btns button").forEach(b=>b.classList.remove("active"));
   if(id==="home") document.getElementById("nav-home").classList.add("active");
+  if(id==="report") document.getElementById("nav-report").classList.add("active");
   if(id==="board"){document.getElementById("nav-board").classList.add("active");loadLeaderboard();}
   if(id==="chat"){document.getElementById("nav-chat").classList.add("active");startChatPoll();}
   if(id!=="chat") stopChatPoll();
@@ -913,7 +955,6 @@ async function doLogin(){
 function doGoogleLogin() {
   const el = document.getElementById("login-msg");
   el.innerHTML = `<div class="msg info">กำลังเชื่อมต่อกับ Google...</div>`;
-  // พาผู้ใช้ไปที่ตำแหน่ง Endpoint สำหรับเคลียร์ OAuth บน Python Backend ของน้อง
   window.location.href = "/login/google";
 }
 
@@ -1197,6 +1238,41 @@ async function sendChat(){
   }catch{}
 }
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// ═══════════════════════════════════════════════════════════
+// REPORT SYSTEM FUNCTION (ฟังก์ชันส่งรายงานตั๋วปัญหาแจ้งเรื่องหลังบ้าน)
+// ═══════════════════════════════════════════════════════════
+async function doSendReport() {
+  const name = document.getElementById("report-name").value.trim() || "ผู้เล่นไม่ประสงค์ออกนาม";
+  const category = document.getElementById("report-category").value;
+  const message = document.getElementById("report-message").value.trim();
+  const el = document.getElementById("report-msg");
+  el.innerHTML = "";
+
+  if(!message) {
+    el.innerHTML = `<div class="msg err">❌ กรุณากรอกรายละเอียดปัญหาของคุณก่อนส่งครับ</div>`;
+    return;
+  }
+  
+  el.innerHTML = `<div class="msg info">กำลังนำส่งข้อมูลคำร้องไปยังแอดมินหลังบ้าน...</div>`;
+
+  try {
+    const res = await fetch("/api/report/submit", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ username: name, type: category, message: message })
+    });
+    const data = await res.json();
+    if(data.ok) {
+      el.innerHTML = `<div class="msg ok">✓ ${data.msg}</div>`;
+      document.getElementById("report-message").value = ""; // เคลียร์ช่องฟอร์มหลังส่งเสร็จ
+    } else {
+      el.innerHTML = `<div class="msg err">❌ ${data.msg}</div>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div class="msg err">❌ ระบบขัดข้อง ไม่สามารถติดต่อเซิร์ฟเวอร์หลังบ้านได้</div>`;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // ADMIN
