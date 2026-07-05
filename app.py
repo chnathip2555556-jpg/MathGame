@@ -30,7 +30,7 @@ db_system = db["system"]
 
 ADMIN_USERNAME = "garfiw_dev"
 ADMIN_PASSWORD = "vip888admin"  
-VERSION     = "4.1.0"  # อัปเดตเวอร์ชันแก้บั๊ก      
+VERSION     = "4.2.0"  # อัปเดตเวอร์ชันระบบแรงค์ 1v1 Matchmaking      
 DEV_NAME    = "garfiw_dev"
 
 RANKS = [
@@ -149,7 +149,6 @@ def generate_question(difficulty):
 @app.route("/")
 def index(): 
     sys = load_system()
-    # ✨ แก้ไข: ถ้าเปิดโหมดปิดปรับปรุง และไม่ใช่แอดมินเข้าใช้งาน จะเข้าเว็บไม่ได้เด็ดขาด
     if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME:
         return "<h1>🛠️ เซิร์ฟเวอร์กำลังปิดปรับปรุงชั่วคราวโดยแอดมิน กรุณาลองใหม่ภายหลัง</h1>", 503
     return send_from_directory(current_dir, "index.html")
@@ -234,14 +233,10 @@ def submit_score():
     if user_key not in users: return jsonify({"ok":False,"msg":"ไม่พบผู้ใช้"}),404
     if users[user_key].get("banned", False): return jsonify({"ok":False,"msg":"คุณถูกแบน"}), 403
     
-    # ✨ แก้ไขระบบเก็บคะแนนและให้ EXP สำหรับแรงค์เกม!
     users[user_key]["score"] += new_score
     users[user_key]["games_played"] += 1
-    
-    # 🌟 เพิ่มบรรทัดนี้: ได้รับ EXP เท่ากับจำนวนคะแนนที่ทำได้ในรอบนั้น (หรือคูณเพิ่มได้ตามใจชอบ)
     users[user_key]["exp"] = users[user_key].get("exp", 0) + new_score 
     
-    # อัปเดต ID แรงค์ปัจจุบันของผู้เล่นเก็บลงฐานข้อมูลด้วย
     current_rank_info = get_rank(users[user_key]["exp"])
     users[user_key]["rank_id"] = current_rank_info["id"]
 
@@ -256,6 +251,104 @@ def submit_score():
         "exp":users[user_key]["exp"],
         "rank":current_rank_info,
         "title":get_title(users[user_key]["score"])
+    })
+
+# -------------------------------------------------------------
+# 🏅 MULTIPLAYER RANK MATCH SYSTEM (จับคู่ท้าดวลสุ่มคู่แข่งเรียลไทม์)
+# -------------------------------------------------------------
+@app.route("/api/rank/search", methods=["POST"])
+def rank_search_match():
+    sys = load_system()
+    if sys.get("maintenance", False): return jsonify({"ok":False,"msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
+    
+    # สุ่มรายชื่อผู้เล่นคนอื่นในเซิร์ฟเวอร์มาตั้งเป็นคู่แข่ง หากไม่มีจะใช้บอทอัจฉริยะแทน
+    users = load_users()
+    active_pool = [v.get("display_name", k) for k, v in users.items() if k != session.get("username")]
+    
+    if not active_pool:
+        active_pool = ["NONG_PRO_MATH", "XDC_PLAYER", "Somsak_God", "Zaza_Math", "Inw_Za_007", "Bot_Extreme"]
+        
+    opponent_name = random.choice(active_pool)
+    opponent_score = random.randint(15, 85) # สุ่มคะแนนเป้าหมายที่คู่แข่งจะทำได้มาท้าทายเรา
+    
+    return jsonify({
+        "ok": True,
+        "opponent": opponent_name,
+        "opponent_target": opponent_score,
+        "msg": "จับคู่สำเร็จ! เริ่มการแข่งขัน"
+    })
+
+@app.route("/api/rank/question", methods=["POST"])
+def rank_question():
+    sys = load_system()
+    if sys.get("maintenance", False): return jsonify({"ok":False}), 503
+    
+    # คำนวณความยากของโจทย์ตามระดับแรงค์ปัจจุบันของผู้เล่นคนนั้นๆ
+    users = load_users()
+    uname = session.get("username", "player")
+    u_exp = users.get(uname, {}).get("exp", 0)
+    user_rank = get_rank(u_exp)
+    
+    return jsonify(generate_question(user_rank.get("diff", "easy")))
+
+@app.route("/api/rank/score", methods=["POST"])
+def rank_submit_match_score():
+    sys = load_system()
+    if sys.get("maintenance", False): return jsonify({"ok":False}), 503
+    
+    username = session.get("username")
+    if not username: return jsonify({"ok": False, "msg": "ไม่พบเซสชันผู้ใช้"}), 401
+    
+    data = request.json or {}
+    player_score = int(data.get("score", 0))
+    opponent_score = int(data.get("opponent_target", 50))
+    opponent_name = data.get("opponent", "คู่แข่ง")
+    
+    users = load_users()
+    if username not in users: return jsonify({"ok": False, "msg": "ไม่พบผู้ใช้"}), 404
+    
+    current_exp = users[username].get("exp", 0)
+    
+    # ⚔️ ตรรกะตัดสินผลการแข่งขัน ชนะได้แต้มเพิ่ม / แพ้โดนหักแต้มแรงค์!
+    if player_score > opponent_score:
+        # ชนะ: เพิ่ม EXP 150 แต้ม
+        exp_change = 150
+        result_status = "win"
+        users[username]["exp"] = current_exp + exp_change
+        msg = f"🎉 คุณชนะ {opponent_name}! ได้รับ +{exp_change} EXP"
+    elif player_score < opponent_score:
+        # แพ้: หัก EXP 80 แต้ม (แต่คะแนนแรงค์ต่ำสุดต้องไม่ต่ำกว่า 0)
+        exp_change = -80
+        result_status = "lose"
+        users[username]["exp"] = max(0, current_exp + exp_change)
+        msg = f"💥 คุณแพ้ {opponent_name}! ถูกหัก {exp_change} EXP"
+    else:
+        # เสมอ: ได้รับ 20 EXP เป็นรางวัลปลอบใจ
+        exp_change = 20
+        result_status = "draw"
+        users[username]["exp"] = current_exp + exp_change
+        msg = f"🤝 เสมอกับ {opponent_name}! ได้รับ +{exp_change} EXP"
+        
+    # อัปเดตสถิติทั่วไปลงเซิร์ฟเวอร์
+    users[username]["score"] += player_score
+    users[username]["games_played"] += 1
+    if player_score > users[username].get("best_score", 0):
+        users[username]["best_score"] = player_score
+        
+    # คำนวณอัปเดตขั้นแรงค์ล่าสุด
+    new_rank_info = get_rank(users[username]["exp"])
+    users[username]["rank_id"] = new_rank_info["id"]
+    
+    save_users(users)
+    return jsonify({
+        "ok": True,
+        "result": result_status,
+        "player_score": player_score,
+        "opponent_score": opponent_score,
+        "exp_pool": users[username]["exp"],
+        "rank": new_rank_info,
+        "title": get_title(users[username]["score"]),
+        "msg": msg
     })
 
 @app.route("/api/leaderboard")
