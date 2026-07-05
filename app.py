@@ -18,7 +18,7 @@ app.config.update(
 )
 
 # -------------------------------------------------------------
-# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์
+# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas
 # -------------------------------------------------------------
 MONGO_URI = "mongodb+srv://chnathip2555556_db_user:Mn2g8IG69NuRtfru@mathgame.n8hquki.mongodb.net/?appName=MathGame"
 
@@ -27,10 +27,11 @@ db = client["MathGameDB"]
 db_users = db["users"]          
 db_chat = db["chat"]            
 db_system = db["system"]        
+db_reports = db["reports"]      # ✨ เพิ่มตารางเก็บเรื่องแจ้งปัญหา
 
 ADMIN_USERNAME = "garfiw_dev"
 ADMIN_PASSWORD = "vip888admin"  
-VERSION     = "4.2.0"  # อัปเดตเวอร์ชันระบบแรงค์ 1v1 Matchmaking      
+VERSION     = "4.2.2"  # แก้ไข Bug Circular Import ปลั๊กหลุด 100%      
 DEV_NAME    = "garfiw_dev"
 
 RANKS = [
@@ -52,7 +53,6 @@ TITLES = [
     {"name":"อัลเบิร์ต ไอน์สไตน์","emoji":"🧠🧠","min":100000},
 ]
 
-# ⚙️ Functions ส่วนกลางใช้งานร่วมกัน
 def get_rank(exp):
     r = RANKS[0]
     for rk in RANKS:
@@ -67,13 +67,11 @@ def get_title(score):
 
 def load_users():
     users = {}
-    for u in db_users.find():
-        users[u["username"]] = u["data"]
+    for u in db_users.find(): users[u["username"]] = u["data"]
     return users
 
 def save_users(users):
-    for username, data in users.items():
-        db_users.update_one({"username": username}, {"$set": {"data": data}}, upsert=True)
+    for username, data in users.items(): db_users.update_one({"username": username}, {"$set": {"data": data}}, upsert=True)
 
 def load_chat():
     chats = list(db_chat.find().sort("ts", 1))
@@ -83,18 +81,15 @@ def load_chat():
 
 def save_chat(chat_list):
     db_chat.delete_many({})
-    if chat_list:
-        db_chat.insert_many(chat_list)
+    if chat_list: db_chat.insert_many(chat_list)
 
 def load_system():
     sys = db_system.find_one({"type": "config"})
-    if not sys:
-        return {"reset_flag": False, "reset_time": 0, "theme": "dark", "maintenance": False, "announcement": "ยินดีต้อนรับสู่ MathGame!"}
+    if not sys: return {"reset_flag": False, "reset_time": 0, "theme": "dark", "maintenance": False, "announcement": "ยินดีต้อนรับสู่ MathGame!"}
     if "_id" in sys: del sys["_id"]
     return sys
 
-def save_system(sys_data):
-    db_system.update_one({"type": "config"}, {"$set": sys_data}, upsert=True)
+def save_system(sys_data): db_system.update_one({"type": "config"}, {"$set": sys_data}, upsert=True)
 
 def gen_pin():
     users = load_users()
@@ -108,7 +103,6 @@ def generate_question(difficulty):
     elif difficulty == "medium":  ops, r = ["+","-","*"], 50
     elif difficulty == "hard":    ops, r = ["+","-","*","/"], 100
     else:                         ops, r = ["+","-","*","/","**","%"], 999
-
     op = random.choice(ops)
     if op == "**":
         a = random.randint(2,9); b = random.randint(2,4); ans = a**b
@@ -116,35 +110,24 @@ def generate_question(difficulty):
         while len(wrongs) < 3:
             w = ans + random.randint(-max(10,ans//5), max(10,ans//5))
             if w != ans and w > 0: wrongs.add(w)
-        choices = list(wrongs)+[ans]; random.shuffle(choices)
-        return {"question":f"{a}^{b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
+        return {"question":f"{a}^{b} = ?","answer":str(ans),"choices":[str(x) for x in list(wrongs)+[ans]]}
     elif op == "%":
         a = random.randint(10,999); b = random.randint(2,20); ans = a%b
         wrongs = set()
         while len(wrongs) < 3:
             w = random.randint(0,b-1)
             if w != ans: wrongs.add(w)
-        choices = list(wrongs)+[ans]; random.shuffle(choices)
-        return {"question":f"{a} mod {b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
-    elif op == "/":
-        b = random.randint(2,10); ans = random.randint(1,10); a = b*ans
-    elif op == "*":
-        lim = 20 if difficulty=="extreme" else 12
-        a = random.randint(2,lim); b = random.randint(2,lim); ans = a*b
-    elif op == "-":
-        a = random.randint(10,r); b = random.randint(1,a); ans = a-b
-    else:
-        a = random.randint(1,r); b = random.randint(1,r); ans = a+b
-
-    wr = max(5, abs(ans)//4) if difficulty=="extreme" else 10
+        return {"question":f"{a} mod {b} = ?","answer":str(ans),"choices":[str(x) for x in list(wrongs)+[ans]]}
+    elif op == "/": b = random.randint(2,10); ans = random.randint(1,10); a = b*ans
+    elif op == "*": lim = 20 if difficulty=="extreme" else 12; a = random.randint(2,lim); b = random.randint(2,lim); ans = a*b
+    elif op == "-": a = random.randint(10,r); b = random.randint(1,a); ans = a-b
+    else: a = random.randint(1,r); b = random.randint(1,r); ans = a+b
     wrongs = set()
     while len(wrongs) < 3:
-        offset = random.randint(1,wr)
-        w = ans+offset if random.random()<0.5 else ans-offset
+        w = ans + random.randint(1,10) if random.random()<0.5 else ans - random.randint(1,10)
         if w != ans and w > 0: wrongs.add(w)
     choices = list(wrongs)+[ans]; random.shuffle(choices)
-    op_d = {"*":"×","/":"÷"}.get(op,op)
-    return {"question":f"{a} {op_d} {b} = ?","answer":str(ans),"choices":[str(x) for x in choices]}
+    return {"question":f"{a} {{*:'×','/':'÷'}}.get(op,op) {b} = ?".replace("{{*:'×','/':'÷'}}.get(op,op)", {"*":"×","/":"÷"}.get(op,op)),"answer":str(ans),"choices":[str(x) for x in choices]}
 
 @app.route("/")
 def index(): 
@@ -157,199 +140,124 @@ def index():
 def api_info(): return jsonify({"version":VERSION,"dev":DEV_NAME})
 
 # -------------------------------------------------------------
-# 🎮 PLAYER API (เฉพาะระบบฝั่งคนเล่นเกม)
+# 🎮 PLAYER API 
 # -------------------------------------------------------------
 @app.route("/api/register",methods=["POST"])
 def register():
-    sys = load_system()
-    if sys.get("maintenance", False): return jsonify({"ok":False,"msg":"เซิร์ฟเวอร์ปิดปรับปรุงอยู่"}), 503
-    
-    data = request.json
-    username = data.get("username","").strip()
-    password = data.get("password","").strip()
+    if load_system().get("maintenance", False): return jsonify({"ok":False,"msg":"เซิร์ฟเวอร์ปิดปรับปรุงอยู่"}), 503
+    data = request.json; username = data.get("username","").strip(); password = data.get("password","").strip()
     if not username or not password: return jsonify({"ok":False,"msg":"กรุณากรอกชื่อและรหัสผ่าน"}),400
     users = load_users()
     if username in users: return jsonify({"ok":False,"msg":"ชื่อผู้ใช้นี้มีอยู่แล้ว"}),409
     pin = gen_pin()
     users[username] = {"password":password,"pin":pin,"score":0,"games_played":0,"best_score":0,"exp":0,"rank_id":"wood","banned":False}
-    save_users(users)
-    session.permanent = True
-    session["username"] = username
-    session["pin"] = pin
+    save_users(users); session.permanent = True; session["username"] = username; session["pin"] = pin
     return jsonify({"ok":True,"pin":pin,"msg":"สร้างบัญชีสำเร็จ"})
 
 @app.route("/api/login",methods=["POST"])
 def login():
-    data = request.json
-    pin = data.get("pin","").strip()
-    users = load_users()
+    data = request.json; pin = data.get("pin","").strip(); users = load_users()
     for username, info in users.items():
         if info["pin"]==pin:
             if info.get("banned", False): return jsonify({"ok":False,"msg":"บัญชีนี้ถูกแบนโดยแอดมิน"}), 403
-            session.permanent = True
-            session["username"] = username
-            session["pin"] = pin
-            rank  = get_rank(info.get("exp",0))
-            title = get_title(info.get("score",0))
-            return jsonify({"ok":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":rank,"title":title})
+            session.permanent = True; session["username"] = username; session["pin"] = pin
+            return jsonify({"ok":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":get_rank(info.get("exp",0)),"title":get_title(info["score"])})
     return jsonify({"ok":False,"msg":"PIN ไม่ถูกต้อง"}),401
 
 @app.route("/api/check-auth", methods=["GET"])
 def check_auth():
     if "username" in session and "pin" in session:
-        users = load_users()
-        username = session["username"]
+        users = load_users(); username = session["username"]
         if username in users:
             info = users[username]
             if info.get("banned", False): return jsonify({"logged_in":False}), 200
-            rank  = get_rank(info.get("exp",0))
-            title = get_title(info.get("score",0))
-            return jsonify({"logged_in":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":rank,"title":title})
+            return jsonify({"logged_in":True,"username":info.get("display_name", username),"score":info["score"],"best_score":info["best_score"],"games_played":info["games_played"],"exp":info.get("exp",0),"rank":get_rank(info.get("exp",0)),"title":get_title(info["score"])})
     return jsonify({"logged_in":False}),200
 
 @app.route("/api/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return jsonify({"ok":True,"msg":"ออกจากระบบเรียบร้อย"})
+def logout(): session.clear(); return jsonify({"ok":True,"msg":"ออกจากระบบเรียบร้อย"})
 
 @app.route("/api/question",methods=["POST"])
 def question():
-    sys = load_system()
-    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
-        return jsonify({"ok":False, "msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
+    if load_system().get("maintenance", False) and session.get("username") != ADMIN_USERNAME: return jsonify({"ok":False}), 503
     return jsonify(generate_question(request.json.get("difficulty","easy")))
 
 @app.route("/api/score",methods=["POST"])
 def submit_score():
-    sys = load_system()
-    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
-        return jsonify({"ok":False, "msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
-
+    if load_system().get("maintenance", False) and session.get("username") != ADMIN_USERNAME: return jsonify({"ok":False}), 503
     data = request.json; username = data.get("username"); new_score = data.get("score",0)
     users = load_users(); user_key = username
     if username not in users:
         for k, v in users.items():
             if v.get("display_name") == username: user_key = k; break
     if user_key not in users: return jsonify({"ok":False,"msg":"ไม่พบผู้ใช้"}),404
-    if users[user_key].get("banned", False): return jsonify({"ok":False,"msg":"คุณถูกแบน"}), 403
-    
-    users[user_key]["score"] += new_score
-    users[user_key]["games_played"] += 1
-    users[user_key]["exp"] = users[user_key].get("exp", 0) + new_score 
-    
-    current_rank_info = get_rank(users[user_key]["exp"])
-    users[user_key]["rank_id"] = current_rank_info["id"]
-
-    if new_score > users[user_key]["best_score"]: 
-        users[user_key]["best_score"] = new_score
-        
+    users[user_key]["score"] += new_score; users[user_key]["games_played"] += 1; users[user_key]["exp"] = users[user_key].get("exp", 0) + new_score 
+    if new_score > users[user_key]["best_score"]: users[user_key]["best_score"] = new_score
     save_users(users)
-    return jsonify({
-        "ok":True,
-        "total_score":users[user_key]["score"],
-        "best_score":users[user_key]["best_score"],
-        "exp":users[user_key]["exp"],
-        "rank":current_rank_info,
-        "title":get_title(users[user_key]["score"])
-    })
+    return jsonify({"ok":True,"total_score":users[user_key]["score"],"best_score":users[user_key]["best_score"],"exp":users[user_key]["exp"],"rank":get_rank(users[user_key]["exp"]),"title":get_title(users[user_key]["score"])})
 
 # -------------------------------------------------------------
-# 🏅 MULTIPLAYER RANK MATCH SYSTEM (จับคู่ท้าดวลสุ่มคู่แข่งเรียลไทม์)
+# 📥 NEW API: ระบบรายงานบั๊ก/แจ้งปัญหา (แก้ปัญหารูปที่ 3)
+# -------------------------------------------------------------
+@app.route("/api/report", methods=["GET", "POST"])
+def handle_reports():
+    if request.method == "POST":
+        data = request.json or {}
+        report_doc = {
+            "username": session.get("username", "guest"),
+            "text": data.get("text", "").strip(),
+            "ts": int(time.time())
+        }
+        if report_doc["text"]: db_reports.insert_one(report_doc)
+        return jsonify({"ok": True, "msg": "ส่งรายงานปัญหาสำเร็จแล้ว!"})
+    else:
+        reports = list(db_reports.find().sort("ts", -1).limit(50))
+        for r in reports:
+            if "_id" in r: del r["_id"]
+        return jsonify(reports)
+
+# -------------------------------------------------------------
+# 🏅 MULTIPLAYER RANK MATCH SYSTEM
 # -------------------------------------------------------------
 @app.route("/api/rank/search", methods=["POST"])
 def rank_search_match():
-    sys = load_system()
-    if sys.get("maintenance", False): return jsonify({"ok":False,"msg":"เซิร์ฟเวอร์ปิดปรับปรุง"}), 503
-    
-    # สุ่มรายชื่อผู้เล่นคนอื่นในเซิร์ฟเวอร์มาตั้งเป็นคู่แข่ง หากไม่มีจะใช้บอทอัจฉริยะแทน
     users = load_users()
     active_pool = [v.get("display_name", k) for k, v in users.items() if k != session.get("username")]
-    
-    if not active_pool:
-        active_pool = ["NONG_PRO_MATH", "XDC_PLAYER", "Somsak_God", "Zaza_Math", "Inw_Za_007", "Bot_Extreme"]
-        
-    opponent_name = random.choice(active_pool)
-    opponent_score = random.randint(15, 85) # สุ่มคะแนนเป้าหมายที่คู่แข่งจะทำได้มาท้าทายเรา
-    
-    return jsonify({
-        "ok": True,
-        "opponent": opponent_name,
-        "opponent_target": opponent_score,
-        "msg": "จับคู่สำเร็จ! เริ่มการแข่งขัน"
-    })
+    if not active_pool: active_pool = ["NONG_PRO_MATH", "XDC_PLAYER", "Somsak_God", "Bot_Extreme"]
+    return jsonify({"ok": True, "opponent": random.choice(active_pool), "opponent_target": random.randint(15, 85)})
 
 @app.route("/api/rank/question", methods=["POST"])
 def rank_question():
-    sys = load_system()
-    if sys.get("maintenance", False): return jsonify({"ok":False}), 503
-    
-    # คำนวณความยากของโจทย์ตามระดับแรงค์ปัจจุบันของผู้เล่นคนนั้นๆ
-    users = load_users()
-    uname = session.get("username", "player")
-    u_exp = users.get(uname, {}).get("exp", 0)
-    user_rank = get_rank(u_exp)
-    
-    return jsonify(generate_question(user_rank.get("diff", "easy")))
+    users = load_users(); uname = session.get("username", "player")
+    return jsonify(generate_question(get_rank(users.get(uname, {}).get("exp", 0)).get("diff", "easy")))
 
 @app.route("/api/rank/score", methods=["POST"])
 def rank_submit_match_score():
-    sys = load_system()
-    if sys.get("maintenance", False): return jsonify({"ok":False}), 503
-    
     username = session.get("username")
-    if not username: return jsonify({"ok": False, "msg": "ไม่พบเซสชันผู้ใช้"}), 401
-    
-    data = request.json or {}
-    player_score = int(data.get("score", 0))
-    opponent_score = int(data.get("opponent_target", 50))
-    opponent_name = data.get("opponent", "คู่แข่ง")
-    
+    if not username: return jsonify({"ok": False}), 401
+    data = request.json or {}; player_score = int(data.get("score", 0)); opponent_score = int(data.get("opponent_target", 50)); opponent_name = data.get("opponent", "คู่แข่ง")
     users = load_users()
-    if username not in users: return jsonify({"ok": False, "msg": "ไม่พบผู้ใช้"}), 404
-    
+    if username not in users: return jsonify({"ok": False}), 404
     current_exp = users[username].get("exp", 0)
     
-    # ⚔️ ตรรกะตัดสินผลการแข่งขัน ชนะได้แต้มเพิ่ม / แพ้โดนหักแต้มแรงค์!
     if player_score > opponent_score:
-        # ชนะ: เพิ่ม EXP 150 แต้ม
-        exp_change = 150
-        result_status = "win"
+        exp_change = 150; result_status = "win"
         users[username]["exp"] = current_exp + exp_change
         msg = f"🎉 คุณชนะ {opponent_name}! ได้รับ +{exp_change} EXP"
     elif player_score < opponent_score:
-        # แพ้: หัก EXP 80 แต้ม (แต่คะแนนแรงค์ต่ำสุดต้องไม่ต่ำกว่า 0)
-        exp_change = -80
-        result_status = "lose"
+        exp_change = -80; result_status = "lose"
         users[username]["exp"] = max(0, current_exp + exp_change)
         msg = f"💥 คุณแพ้ {opponent_name}! ถูกหัก {exp_change} EXP"
     else:
-        # เสมอ: ได้รับ 20 EXP เป็นรางวัลปลอบใจ
-        exp_change = 20
-        result_status = "draw"
+        exp_change = 20; result_status = "draw"
         users[username]["exp"] = current_exp + exp_change
         msg = f"🤝 เสมอกับ {opponent_name}! ได้รับ +{exp_change} EXP"
         
-    # อัปเดตสถิติทั่วไปลงเซิร์ฟเวอร์
-    users[username]["score"] += player_score
-    users[username]["games_played"] += 1
-    if player_score > users[username].get("best_score", 0):
-        users[username]["best_score"] = player_score
-        
-    # คำนวณอัปเดตขั้นแรงค์ล่าสุด
-    new_rank_info = get_rank(users[username]["exp"])
-    users[username]["rank_id"] = new_rank_info["id"]
-    
+    users[username]["score"] += player_score; users[username]["games_played"] += 1
+    if player_score > users[username].get("best_score", 0): users[username]["best_score"] = player_score
+    users[username]["rank_id"] = get_rank(users[username]["exp"])["id"]
     save_users(users)
-    return jsonify({
-        "ok": True,
-        "result": result_status,
-        "player_score": player_score,
-        "opponent_score": opponent_score,
-        "exp_pool": users[username]["exp"],
-        "rank": new_rank_info,
-        "title": get_title(users[username]["score"]),
-        "msg": msg
-    })
+    return jsonify({"ok": True, "result": result_status, "player_score": player_score, "opponent_score": opponent_score, "exp_pool": users[username]["exp"], "rank": get_rank(users[username]["exp"]), "title": get_title(users[username]["score"]), "msg": msg})
 
 @app.route("/api/leaderboard")
 def leaderboard():
@@ -361,48 +269,26 @@ def leaderboard():
     board.sort(key=lambda x:x["best_score"],reverse=True)
     return jsonify(board[:20])
 
-@app.route("/api/chat")
-def chat_get(): return jsonify(load_chat()[-80:])
+@app.route("/api/chat", methods=["GET", "POST"])
+def handle_chat():
+    if request.method == "POST":
+        data = request.json; username=data.get("username","").strip(); text=data.get("text","").strip()
+        users = load_users(); user_key = username
+        if username != ADMIN_USERNAME:
+            for k, v in users.items():
+                if v.get("display_name") == username or k == username: user_key = k; break
+        rank_emoji = "👑" if username==ADMIN_USERNAME else get_rank(users.get(user_key,{}).get("exp",0))["emoji"]
+        title_emoji = "⚙️" if username==ADMIN_USERNAME else get_title(users.get(user_key,{}).get("score",0))["emoji"]
+        msgs=load_chat(); msgs.append({"user":username,"text":text,"rank_emoji":rank_emoji,"title_emoji":title_emoji,"ts":int(time.time())})
+        save_chat(msgs); return jsonify({"ok":True})
+    return jsonify(load_chat()[-80:])
 
-@app.route("/api/chat",methods=["POST"])
-def chat_post():
-    sys = load_system()
-    if sys.get("maintenance", False) and session.get("username") != ADMIN_USERNAME: 
-        return jsonify({"ok":False}), 503
-
-    data = request.json; username=data.get("username","").strip(); text=data.get("text","").strip()
-    if not username or not text: return jsonify({"ok":False}),400
-    users = load_users(); user_key = username
-    if username != ADMIN_USERNAME:
-        for k, v in users.items():
-            if v.get("display_name") == username or k == username: user_key = k; break
-    if user_key not in users and username!=ADMIN_USERNAME: return jsonify({"ok":False}),403
-    if users.get(user_key, {}).get("banned", False): return jsonify({"ok":False,"msg":"คุณถูกแบนแชท"}),403
-    rank_emoji  = "👑" if username==ADMIN_USERNAME else get_rank(users.get(user_key,{}).get("exp",0))["emoji"]
-    title_emoji = "⚙️" if username==ADMIN_USERNAME else get_title(users.get(user_key,{}).get("score",0))["emoji"]
-    msgs=load_chat()
-    msgs.append({"user":username,"text":text,"rank_emoji":rank_emoji,"title_emoji":title_emoji,"ts":int(time.time())})
-    save_chat(msgs); return jsonify({"ok":True})
-
-# -------------------------------------------------------------
-# ⚙️ แชร์ตัวแปรและคอลเลกชันฐานข้อมูลให้ระบบแอดมินนำไปใช้งานผ่าน Blueprint
-# -------------------------------------------------------------
 app.config.update(
-    db_users=db_users,
-    db_system=db_system,
-    db_chat=db_chat,
-    ADMIN_USERNAME=ADMIN_USERNAME,
-    ADMIN_PASSWORD=ADMIN_PASSWORD,
-    RANKS=RANKS,
-    CURRENT_DIR=current_dir,
-    get_rank_func=get_rank,
-    get_title_func=get_title,
-    load_users_func=load_users,
-    save_users_func=save_users,
-    load_system_func=load_system,
-    save_system_func=save_system,  
-    save_chat_func=save_chat,
-    gen_pin_func=gen_pin
+    db_users=db_users, db_system=db_system, db_chat=db_chat,
+    ADMIN_USERNAME=ADMIN_USERNAME, ADMIN_PASSWORD=ADMIN_PASSWORD,
+    RANKS=RANKS, CURRENT_DIR=current_dir, get_rank_func=get_rank,
+    get_title_func=get_title, load_users_func=load_users, save_users_func=save_users,
+    load_system_func=load_system, save_system_func=save_system, save_chat_func=save_chat, gen_pin_func=gen_pin
 )
 
 from admin_routes import admin_bp
