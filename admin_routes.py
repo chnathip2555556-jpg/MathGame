@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, send_from_directory, current_app
 import time
+import random
 
 admin_bp = Blueprint('admin_routes', __name__)
 
@@ -8,6 +9,7 @@ def get_globals():
         "db_users": current_app.config.get('db_users'),
         "db_system": current_app.config.get('db_system'),
         "db_chat": current_app.config.get('db_chat'),
+        "db_reports": current_app.config.get('db_reports'),  # 🔌 เชื่อมต่อคอลเลกชันรายงานปัญหา
         "ADMIN_USERNAME": current_app.config.get('ADMIN_USERNAME'),
         "ADMIN_PASSWORD": current_app.config.get('ADMIN_PASSWORD'),
         "RANKS": current_app.config.get('RANKS'),
@@ -199,3 +201,18 @@ def admin_server_stats():
         "total_score_pool": sum(u.get("score", 0) for u in users.values()), "banned_count": sum(1 for u in users.values() if u.get("banned", False)),
         "db_chat_count": g["db_chat"].count_documents({})
     })
+
+# 🚨 เพิ่มเติมเส้นทางระบบรีพอร์ตปัญหาให้แอดมินเรียกดูจากฐานข้อมูล Atlas ได้
+@admin_bp.route("/api/admin/reports", methods=["POST"])
+def admin_get_reports():
+    g = get_globals()
+    data = request.json
+    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: 
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
+    try:
+        reports = list(g["db_reports"].find().sort("ts", -1))
+        for r in reports:
+            if "_id" in r: r["_id"] = str(r["_id"])
+        return jsonify({"ok": True, "reports": reports})
+    except Exception as e:
+        return jsonify({"ok": False, "reports": [], "msg": str(e)})
