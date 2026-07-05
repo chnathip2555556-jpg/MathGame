@@ -107,29 +107,18 @@ def admin_manage_player():
     g["save_users"](users)
     return jsonify({"ok": True, "msg": "จัดการข้อมูลสำเร็จ!"})
 
-# ✨ ปรับปรุงระบบเปิด/ปิดปรับปรุงเซิร์ฟเวอร์ให้บันทึกสถานะได้เสถียร 100%
 @admin_bp.route("/api/admin/toggle-maintenance", methods=["POST"])
 def toggle_maintenance():
     g = get_globals()
     data = request.json
-    
     if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: 
         return jsonify({"ok": False, "msg": "คุณไม่มีสิทธิ์"}), 403
-        
     sys = g["load_system"]()
     current_status = sys.get("maintenance", False)
-    
-    # สลับสถานะเปิด-ปิด
     sys["maintenance"] = not current_status
     sys["type"] = "config"
-    
     g["save_system"](sys)
-    
-    return jsonify({
-        "ok": True, 
-        "maintenance": sys["maintenance"], 
-        "msg": f"เปลี่ยนสถานะปิดปรับปรุงเป็น: {'เปิดใช้งาน' if sys['maintenance'] else 'ปิดใช้งาน'}"
-    })
+    return jsonify({"ok": True, "maintenance": sys["maintenance"]})
 
 @admin_bp.route("/api/admin/set-announcement", methods=["POST"])
 def set_announcement():
@@ -188,87 +177,25 @@ def admin_giveaway_all():
     if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
     give_type = data.get("type")
     amount = int(data.get("amount", 0))
-    
     users = g["load_users"]()
     for uname in users:
         if give_type == "score":
             users[uname]["score"] += amount
-            if users[uname]["score"] > users[uname].get("best_score", 0):
-                users[uname]["best_score"] = users[uname]["score"]
+            if users[uname]["score"] > users[uname].get("best_score", 0): users[uname]["best_score"] = users[uname]["score"]
         elif give_type == "exp":
             users[uname]["exp"] = users[uname].get("exp", 0) + amount
             users[uname]["rank_id"] = g["get_rank"](users[uname]["exp"])["id"]
-            
     g["save_users"](users)
-    return jsonify({"ok": True, "msg": f"แจกรางวัล {give_type} จำนวน {amount} ให้ผู้เล่นทุกคนแล้ว!"})
+    return jsonify({"ok": True, "msg": "แจกรางวัลสำเร็จ!"})
 
 @admin_bp.route("/api/admin/server-stats", methods=["POST"])
 def admin_server_stats():
     g = get_globals()
     data = request.json
     if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
-    
     users = g["load_users"]()
-    total_players = len(users)
-    total_games = sum(u.get("games_played", 0) for u in users.values())
-    total_score = sum(u.get("score", 0) for u in users.values())
-    banned_players = sum(1 for u in users.values() if u.get("banned", False))
-    
     return jsonify({
-        "ok": True,
-        "total_players": total_players,
-        "total_games_played": total_games,
-        "total_score_pool": total_score,
-        "banned_count": banned_players,
+        "ok": True, "total_players": len(users), "total_games_played": sum(u.get("games_played", 0) for u in users.values()),
+        "total_score_pool": sum(u.get("score", 0) for u in users.values()), "banned_count": sum(1 for u in users.values() if u.get("banned", False)),
         "db_chat_count": g["db_chat"].count_documents({})
     })
-
-@admin_bp.route("/api/admin/send-system-chat", methods=["POST"])
-def admin_send_system_chat():
-    g = get_globals()
-    data = request.json
-    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
-    text = data.get("text", "").strip()
-    if not text: return jsonify({"ok": False, "msg": "ไม่มีข้อความ"}), 400
-    
-    msg_doc = {
-        "user": "[ระบบประกาศ]",
-        "text": text,
-        "rank_emoji": "📢",
-        "title_emoji": "✨",
-        "ts": int(time.time())
-    }
-    g["db_chat"].insert_one(msg_doc)
-    return jsonify({"ok": True, "msg": "ส่งข้อความประกาศเข้าแชทเรียบร้อย!"})
-
-@admin_bp.route("/api/admin/delete-chat-msg", methods=["POST"])
-def admin_delete_chat_msg():
-    g = get_globals()
-    data = request.json
-    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
-    msg_ts = data.get("ts")
-    
-    g["db_chat"].delete_one({"ts": int(msg_ts)})
-    return jsonify({"ok": True, "msg": "ลบข้อความแชทดังกล่าวแล้ว"})
-
-@admin_bp.route("/api/admin/set-player-luck", methods=["POST"])
-def admin_set_player_luck():
-    g = get_globals()
-    data = request.json
-    if data.get("admin_user") != g["ADMIN_USERNAME"] or data.get("admin_pass") != g["ADMIN_PASSWORD"]: return jsonify({"ok":False}), 403
-    target_pin = data.get("target_pin", "").strip()
-    mode = data.get("mode", "normal")
-    
-    users = g["load_users"]()
-    target_username = None
-    for uname, info in users.items():
-        if info.get("pin") == target_pin:
-            target_username = uname
-            break
-            
-    if not target_username: return jsonify({"ok": False, "msg": "ไม่พบ PIN นี้"}), 404
-    
-    users[target_username]["lucky_mode"] = mode
-    g["save_users"](users)
-    return jsonify({"ok": True, "msg": f"เปลี่ยนโหมดผู้เล่นเป็น {mode} สำเร็จแล้ว!"})
-
