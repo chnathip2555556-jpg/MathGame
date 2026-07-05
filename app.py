@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory, session, redirec
 from flask_cors import CORS
 import os, random, string, time, requests
 from datetime import timedelta
-from pymongo import MongoClient  # 🔌 นำเข้าเครื่องมือสำหรับเชื่อมต่อ MongoDB
+from pymongo import MongoClient  
 
 # ⚙️ ดึงตำแหน่งโฟลเดอร์สำหรับ Render
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,19 +20,19 @@ app.config.update(
 )
 
 # -------------------------------------------------------------
-# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์ (อัปเดตรหัสผ่านใหม่แล้ว)
+# 🔌 เชื่อมต่อฐานข้อมูล MongoDB Atlas ออนไลน์
 # -------------------------------------------------------------
 MONGO_URI = "mongodb+srv://chnathip2555556_db_user:Mn2g8IG69NuRtfru@mathgame.n8hquki.mongodb.net/?appName=MathGame"
 
 client = MongoClient(MONGO_URI)
-db = client["MathGameDB"]       # สร้างชื่อ Database บนคลาวด์
-db_users = db["users"]          # ตารางเก็บข้อมูลผู้ใช้แทน users.json
-db_chat = db["chat"]            # ตารางเก็บแชทแทน chat.json
-db_system = db["system"]        # ตารางเก็บตั้งค่าระบบแทน system.json
-db_reports = db["reports"]      # 🚨 ตารางใหม่สำหรับเก็บตั๋วแจ้งปัญหาลืม PIN / แจ้งบัค
+db = client["MathGameDB"]       
+db_users = db["users"]          
+db_chat = db["chat"]            
+db_system = db["system"]        
+db_reports = db["reports"]      # 🚨 ตารางรีพอร์ตปัญหา
 
 # -------------------------------------------------------------
-# ⚙️ ตั้งค่า Google API
+# ⚙️ ตั้งค่าระบบ
 # -------------------------------------------------------------
 GOOGLE_CLIENT_ID = "284119968090-n4sucq5q75o8us0ra0v44jkoo33qag8p.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
@@ -77,7 +77,6 @@ def get_title(score):
         if score >= ti["min"]: t = ti
     return t
 
-# 🔄 ปรับปรุงฟังก์ชันการดึงข้อมูลจากเดิมที่เป็นไฟล์มาดึงจาก MongoDB แทน
 def load_users():
     users = {}
     for u in db_users.find():
@@ -294,129 +293,6 @@ def logout():
     session.clear()
     return jsonify({"ok":True,"msg":"ออกจากระบบเรียบร้อย"})
 
-@app.route("/api/admin/login",methods=["POST"])
-def admin_login():
-    data = request.json
-    if data.get("username")==ADMIN_USERNAME and data.get("password")==ADMIN_PASSWORD:
-        return jsonify({"ok":True})
-    return jsonify({"ok":False,"msg":"ชื่อหรือรหัสผ่านไม่ถูกต้อง"}),401
-
-@app.route("/api/admin/users",methods=["POST"])
-def admin_users():
-    data = request.json
-    if data.get("username")!=ADMIN_USERNAME or data.get("password")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    users = load_users(); result = []
-    for uname,info in users.items():
-        rank = get_rank(info.get("exp",0)); title = get_title(info.get("score",0))
-        disp_name = info.get("display_name", uname)
-        result.append({"username":disp_name,"pin":info["pin"],"score":info["score"],
-            "best_score":info["best_score"],"games_played":info["games_played"],
-            "exp":info.get("exp",0),"rank":rank["emoji"]+" "+rank["name"],
-            "title":title["emoji"]+" "+title["name"]})
-    result.sort(key=lambda x:x["best_score"],reverse=True)
-    return jsonify({"ok":True,"users":result})
-
-@app.route("/api/admin/reset-pin",methods=["POST"])
-def admin_reset_pin():
-    data = request.json
-    if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    target = data.get("username"); users = load_users()
-    if target not in users: return jsonify({"ok":False,"msg":"ไม่พบผู้ใช้"}),404
-    new_pin = gen_pin(); users[target]["pin"]=new_pin; save_users(users)
-    return jsonify({"ok":True,"new_pin":new_pin})
-
-@app.route("/api/admin/delete-user",methods=["POST"])
-def admin_delete_user():
-    data = request.json
-    if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    target = data.get("username")
-    db_users.delete_one({"username": target})
-    return jsonify({"ok":True})
-
-@app.route("/api/admin/reset-ranks",methods=["POST"])
-def admin_reset_ranks():
-    data = request.json
-    if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    users = load_users()
-    for u in users: users[u]["exp"]=0; users[u]["rank_id"]="wood"
-    save_users(users)
-    sys = load_system(); sys["reset_flag"]=True; sys["reset_time"]=int(time.time()); save_system(sys)
-    return jsonify({"ok":True})
-
-@app.route("/api/admin/set-theme",methods=["POST"])
-def admin_set_theme():
-    data = request.json
-    if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    theme = data.get("theme","dark")
-    if theme not in THEMES: return jsonify({"ok":False,"msg":"ธีมไม่ถูกต้อง"}),400
-    sys = load_system(); sys["theme"]=theme; save_system(sys)
-    return jsonify({"ok":True,"theme":theme})
-
-# -------------------------------------------------------------
-# 🛠️ เมนูเปิดหน้าเว็บแอดมิน และ API จัดการค่า (เลื่อนขั้น/เพิ่มแต้ม/ปรับ EXP)
-# -------------------------------------------------------------
-@app.route("/admin")
-def admin_page():
-    return send_from_directory(current_dir, "admin.html")
-
-@app.route("/api/admin/manage-player", methods=["POST"])
-def admin_manage_player():
-    data = request.json
-    admin_user = data.get("admin_user")
-    admin_pass = data.get("admin_pass")
-    
-    if admin_user != ADMIN_USERNAME or admin_pass != ADMIN_PASSWORD:
-        return jsonify({"ok": False, "msg": "คุณไม่มีสิทธิ์เข้าถึงส่วนนี้"}), 403
-        
-    target_pin = data.get("target_pin", "").strip()
-    action = data.get("action")  # 'add_score', 'reduce_score', 'add_exp', 'reduce_exp', 'set_rank'
-    value = data.get("value")
-    
-    if not target_pin:
-        return jsonify({"ok": False, "msg": "กรุณากรอก PIN ของผู้เล่น"}), 400
-        
-    users = load_users()
-    target_username = None
-    for uname, info in users.items():
-        if info.get("pin") == target_pin:
-            target_username = uname
-            break
-            
-    if not target_username:
-        return jsonify({"ok": False, "msg": "ไม่พบผู้เล่นที่ใช้ PIN นี้"}), 404
-        
-    user_data = users[target_username]
-    
-    if action == "add_score":
-        user_data["score"] += int(value)
-        if user_data["score"] > user_data.get("best_score", 0):
-            user_data["best_score"] = user_data["score"]
-    elif action == "reduce_score":
-        user_data["score"] = max(0, user_data["score"] - int(value))
-    elif action == "add_exp":
-        user_data["exp"] = user_data.get("exp", 0) + int(value)
-        user_data["rank_id"] = get_rank(user_data["exp"])["id"]
-    elif action == "reduce_exp":
-        user_data["exp"] = max(0, user_data.get("exp", 0) - int(value))
-        user_data["rank_id"] = get_rank(user_data["exp"])["id"]
-    elif action == "set_rank":
-        valid_ranks = [rk["id"] for rk in RANKS]
-        if value not in valid_ranks:
-            return jsonify({"ok": False, "msg": "ไอดีแรงค์ไม่ถูกต้อง"}), 400
-        for rk in RANKS:
-            if rk["id"] == value:
-                user_data["rank_id"] = rk["id"]
-                user_data["exp"] = rk["exp_need"]
-                break
-
-    save_users(users)
-    return jsonify({"ok": True, "msg": "จัดการข้อมูลสำเร็จแล้ว!"})
-
 @app.route("/api/system/status")
 def system_status():
     sys = load_system()
@@ -451,7 +327,6 @@ def submit_score():
     return jsonify({"ok":True,"total_score":users[user_key]["score"],
         "best_score":users[user_key]["best_score"],"rank":rank,"title":title})
 
-# ⚔️ แก้ไข: ล็อกและเชื่อมโยงระบบค้นหาคู่แข่งสู้แรงค์ดั้งเดิมให้สมบูรณ์
 @app.route("/api/ranked/find",methods=["POST"])
 def ranked_find():
     data = request.json; username = data.get("username")
@@ -474,31 +349,35 @@ def ranked_find():
     opponent_name = users[opponent_key].get("display_name", opponent_key)
     return jsonify({"ok":True,"opponent":opponent_name,"opponent_rank":opp_rank,"difficulty":my_rank["diff"]})
 
-# 🏆 แก้ไข: นำระบบส่งคะแนนและคำนวณความเร็วเดิมมารันตามโครงสร้างดั้งเดิม
+# 🏆 ปรับปรุงใหม่: ชนะบวกคะแนนความเร็ว แพ้สุ่มลดแต้มคะแนนแรงค์ (EXP) ไม่เกิน 200 แต้ม
 @app.route("/api/ranked/submit",methods=["POST"])
 def ranked_submit():
     data = request.json
     winner=data.get("winner"); loser=data.get("loser")
     w_time=data.get("winner_time",99); w_score=data.get("winner_score",0)
     users = load_users()
-    speed_bonus = max(0,int((15-w_time)*3))
-    exp_gain = 60+speed_bonus+w_score*2
     
     w_key, l_key = winner, loser
     for k, v in users.items():
         if v.get("display_name") == winner: w_key = k
         if v.get("display_name") == loser: l_key = k
 
+    # ถ้าชนะ: บวกแต้มปกติ
     if winner and w_key in users:
+        speed_bonus = max(0,int((15-w_time)*3))
+        exp_gain = 60+speed_bonus+w_score*2
         users[w_key]["exp"]=users[w_key].get("exp",0)+exp_gain
         users[w_key]["rank_id"]=get_rank(users[w_key]["exp"])["id"]
+        
+    # 📉 ถ้าแพ้: สุ่มลบคะแนนแรงค์ (EXP) ไม่เกิน 200 แต้ม (สุ่มตั้งแต่ 10 ถึง 200)
     if loser and l_key in users:
-        loser_exp=max(5,exp_gain//5)
-        users[l_key]["exp"]=users[l_key].get("exp",0)+loser_exp
-        users[l_key]["rank_id"]=get_rank(users[l_key]["exp"])["id"]
+        lost_exp = random.randint(10, 200)
+        users[l_key]["exp"] = max(0, users[l_key].get("exp", 0) - lost_exp)  # ดักไว้ไม่ให้ต่ำกว่า 0
+        users[l_key]["rank_id"] = get_rank(users[l_key]["exp"])["id"]
+        
     save_users(users)
     new_rank = get_rank(users[w_key]["exp"]) if winner and w_key in users else {}
-    return jsonify({"ok":True,"exp_gained":exp_gain,"new_rank":new_rank})
+    return jsonify({"ok":True,"new_rank":new_rank})
 
 @app.route("/api/leaderboard")
 def leaderboard():
@@ -541,16 +420,6 @@ def chat_post():
     if len(msgs)>200: msgs=msgs[-200:]
     save_chat(msgs); return jsonify({"ok":True})
 
-@app.route("/api/chat/delete",methods=["POST"])
-def chat_delete():
-    data = request.json
-    if data.get("admin_user")!=ADMIN_USERNAME or data.get("admin_pass")!=ADMIN_PASSWORD:
-        return jsonify({"ok":False,"msg":"Unauthorized"}),403
-    save_chat([]); return jsonify({"ok":True})
-
-# ═══════════════════════════════════════════════════════════
-# 🚨 4. เพิ่มระบบบันทึกตั๋วแจ้งเรื่องปัญหารองรับหน้าบ้าน (MongoDB Atlas)
-# ═══════════════════════════════════════════════════════════
 @app.route("/api/report/submit", methods=["POST"])
 def submit_report():
     try:
@@ -558,33 +427,49 @@ def submit_report():
         username = data.get("username", "ผู้เล่นทั่วไป")
         report_type = data.get("type", "ทั่วไป")
         message = data.get("message", "").strip()
+        if not message: return jsonify({"ok": False, "msg": "กรุณากรอกรายละเอียดปัญหาก่อนส่ง"}), 400
 
-        if not message:
-            return jsonify({"ok": False, "msg": "กรุณากรอกรายละเอียดปัญหาก่อนส่ง"}), 400
-
-        # บันทึกลงตาราง db_reports ของ MongoDB บนคลาวด์ตรง ๆ
         db_reports.insert_one({
-            "username": username,
-            "type": report_type,
-            "message": message,
-            "status": "รอดำเนินการ",
-            "ts": int(time.time())
+            "username": username, "type": report_type, "message": message,
+            "status": "รอดำเนินการ", "ts": int(time.time())
         })
         return jsonify({"ok": True, "msg": "ส่งเรื่องแจ้งปัญหาไปยังคลาวด์เรียบร้อยแล้ว แอดมินจะรีบดูให้ครับ!"})
     except Exception as e:
-        return jsonify({"ok": False, "msg": f"เกิดข้อผิดพลาดในการเซฟข้อมูล: {str(e)}"}), 500
+        return jsonify({"ok": False, "msg": f"เกิดข้อผิดพลาด: {str(e)}"}), 500
 
-# 🔄 ดึงข้อมูลประวัติปัญหาล่าสุดกลับไปแสดงผลเพื่อไม่ให้กล่องประวัติขัดข้อง
 @app.route("/api/report/list", methods=["GET"])
 def get_report_list():
     try:
-        # ดึงตั๋วแจ้งเรื่องล่าสุด 10 รายการ
         reports = list(db_reports.find().sort("ts", -1).limit(10))
         for r in reports:
             if "_id" in r: r["_id"] = str(r["_id"])
         return jsonify({"ok": True, "reports": reports})
     except Exception:
         return jsonify({"ok": False, "reports": []})
+
+# -------------------------------------------------------------
+# ⚙️ ผูกตัวแปรส่งต่อให้ Blueprint ไฟล์แยกมองเห็นฐานข้อมูลรีพอร์ตปัญหาร่วมกัน
+# -------------------------------------------------------------
+app.config['db_users'] = db_users
+app.config['db_system'] = db_system
+app.config['db_chat'] = db_chat
+app.config['db_reports'] = db_reports  # 🚨 บรรทัดสำคัญที่ทำให้ระบบรีพอร์ตใช้งานได้
+app.config['ADMIN_USERNAME'] = ADMIN_USERNAME
+app.config['ADMIN_PASSWORD'] = ADMIN_PASSWORD
+app.config['RANKS'] = RANKS
+app.config['CURRENT_DIR'] = current_dir
+app.config['get_rank_func'] = get_rank
+app.config['get_title_func'] = get_title
+app.config['load_users_func'] = load_users
+app.config['save_users_func'] = save_users
+app.config['load_system_func'] = load_system
+app.config['save_system_func'] = save_system
+app.config['save_chat_func'] = save_chat
+app.config['gen_pin_func'] = gen_pin
+
+# นำเข้าและลงทะเบียน Blueprint ของแอดมินแยก (สมมุติตั้งชื่อไฟล์ว่า admin_routes.py)
+from admin_routes import admin_bp
+app.register_blueprint(admin_bp)
 
 if __name__=="__main__":
     port = int(os.environ.get("PORT", 5000))
